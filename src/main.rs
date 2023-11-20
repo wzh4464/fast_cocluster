@@ -3,13 +3,17 @@
  * Created Date: Tuesday November 21st 2023
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 21st November 2023 12:57:40 am
+ * Last Modified: Tuesday, 21st November 2023 1:09:55 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
  */
+
+mod cocluster;
+
+use cocluster::Coclusterer;
 
 extern crate ndarray;
 extern crate ndarray_parallel;
