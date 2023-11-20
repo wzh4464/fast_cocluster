@@ -1,0 +1,11 @@
+[package]
+name = "fast_cocluster"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ndarray = "0.15.3"
+rayon = "1.5.1"
+ndarray-parallel = "0.9.1"
