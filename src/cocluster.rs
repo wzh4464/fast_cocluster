@@ -16,6 +16,9 @@
 use ndarray::Array2;
 extern crate nalgebra as na;
 
+// use kmeans
+// use kmeans::Kmeans;
+
 pub struct Coclusterer {
     // 字段定义
     // need a matrix to init, float
@@ -34,13 +37,15 @@ impl Coclusterer {
     // 方法实现
     // 构造函数
     pub fn new(matrix: Array2<f32>, m: usize, n: usize, tol: f32) -> Coclusterer {
+        let row = matrix.shape()[0];
+        let col = matrix.shape()[1];
         Coclusterer {
-            matrix: matrix,
-            m: m,
-            n: n,
-            tol: tol,
-            row: matrix.shape()[0],
-            col: matrix.shape()[1],
+            matrix,
+            m,
+            n,
+            row,
+            col,
+            tol,
         }
     }
 
@@ -51,7 +56,7 @@ impl Coclusterer {
         let na_matrix = na::DMatrix::from_row_slice(
             self.matrix.shape()[0],
             self.matrix.shape()[1],
-            &self.matrix.into_raw_vec(),
+            self.matrix.as_slice().unwrap(),
         );
         let svd_result = na_matrix.svd(true, true);
         let u = svd_result.u.unwrap(); // shaped as (row, row)
@@ -134,7 +139,7 @@ impl Submatrix {
         let submatrix = na::DMatrix::from_row_slice(
             self.matrix.shape()[0],
             self.matrix.shape()[1],
-            &self.matrix.into_raw_vec(),
+            self.matrix.as_slice().unwrap(),
         );
         let svd = submatrix.svd(true, true);
         let s1 = svd.singular_values[0];

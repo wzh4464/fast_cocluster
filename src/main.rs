@@ -11,39 +11,19 @@
  * ----------		------	---------------------------------------------------------
  */
 
-mod cocluster;
+// mod cocluster;
+// use cocluster::Coclusterer;
+use ndarray::Array2;
 
-use cocluster::Coclusterer;
-
-extern crate ndarray;
-extern crate ndarray_parallel;
-extern crate rayon;
-
-use ndarray::{Array, Array2, Axis};
-use ndarray_parallel::par_azip;
+// test Coclusterer
 
 fn main() {
-    // 创建两个 3x3 的矩阵
-    let a = Array::from_shape_vec((3, 3), (0..9).collect()).unwrap();
-    let b = Array::from_shape_vec((3, 3), (0..9).collect()).unwrap();
-
-    // 并行计算矩阵乘法
-    let result = matrix_multiply_parallel(&a, &b);
-    println!("Result:\n{}", result);
-}
-
-// 并行矩阵乘法函数
-fn matrix_multiply_parallel(a: &Array2<i32>, b: &Array2<i32>) -> Array2<i32> {
-    let n = a.len_of(Axis(0));
-    let p = b.len_of(Axis(1));
-
-    // 初始化结果矩阵
-    let result = Array2::zeros((n, p));
-
-    // 使用 par_azip! 宏进行并行操作
-    par_azip!((index (i, j), result in &mut result) {
-        result[index] = (0..n).map(|k| a[(i, k)] * b[(k, j)]).sum();
-    });
-
-    result
+    // init a constant matrix : Array2<f32>
+    /*
+        [1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0],
+        [7.0, 8.0, 9.0]
+     */
+    let test_matrix = Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]).unwrap();
+    println!("{:?}", test_matrix);
 }
