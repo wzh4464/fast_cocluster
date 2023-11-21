@@ -19,6 +19,9 @@ use ndarray::Array2;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 
+#[cfg(debug_assertions)]
+use std::time::Instant;
+
 // test Coclusterer
 
 fn main() {
@@ -26,9 +29,17 @@ fn main() {
     // rand 200 * 200
     let test_matrix: Array2<f32> = Array2::random((200, 200), Uniform::new(0.0, 1.0));
 
-    println!("{:?}", test_matrix);
+    // println!("{:?}", test_matrix);
 
-    let mut coclusterer = Coclusterer::new(test_matrix, 3, 3, 1e-4);
-
-    coclusterer.cocluster();
+    let mut coclusterer = Coclusterer::new(test_matrix, 3, 3, 1e-1);
+    #[cfg(debug_assertions)]
+    let start_time = Instant::now();
+    
+    println!("{:?}", coclusterer.cocluster());
+    #[cfg(debug_assertions)]
+    {
+        // count time end
+        let end_time = Instant::now();
+        println!("Time cost: {:?}", end_time.duration_since(start_time));
+    }
 }
