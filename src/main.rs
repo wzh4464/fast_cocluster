@@ -11,19 +11,24 @@
  * ----------		------	---------------------------------------------------------
  */
 
-// mod cocluster;
-// use cocluster::Coclusterer;
+mod cocluster;
+use cocluster::Coclusterer;
+
+
 use ndarray::Array2;
+use ndarray_rand::rand_distr::Uniform;
+use ndarray_rand::RandomExt;
 
 // test Coclusterer
 
 fn main() {
     // init a constant matrix : Array2<f32>
-    /*
-        [1.0, 2.0, 3.0],
-        [4.0, 5.0, 6.0],
-        [7.0, 8.0, 9.0]
-     */
-    let test_matrix = Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]).unwrap();
+    // rand 200 * 200
+    let test_matrix: Array2<f32> = Array2::random((200, 200), Uniform::new(0.0, 1.0));
+
     println!("{:?}", test_matrix);
+
+    let mut coclusterer = Coclusterer::new(test_matrix, 3, 3, 1e-4);
+
+    coclusterer.cocluster();
 }

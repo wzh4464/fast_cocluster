@@ -11,3 +11,5 @@ rayon = "1.5.1"
 ndarray-parallel = "0.9.1"
 nalgebra = "0.26.2"
 kmeans = { path = "kmean-rs" }
+rand = "0.8.5"
+ndarray-rand = "0.14.0"
