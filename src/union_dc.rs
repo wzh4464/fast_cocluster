@@ -3,7 +3,7 @@
  * Created Date: Wednesday November 22nd 2023
  * Author: Zihan
  * -----
- * Last Modified: Wednesday, 22nd November 2023 11:26:45 pm
+ * Last Modified: Wednesday, 22nd November 2023 11:35:14 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -24,8 +24,7 @@ impl UnionDC {
     where
         F: FnMut(T, T) -> T,
     {
-        let mut in_or_not = end_condition(queue);
-        while !in_or_not {
+        while !end_condition(queue) {
             let a = queue
                 .pop_front()
                 .expect("Queue should have enough elements");
@@ -34,7 +33,6 @@ impl UnionDC {
                 .expect("Queue should have enough elements");
             let result = func(a, b);
             queue.push_back(result);
-            in_or_not = end_condition(queue);
         }
         // queue
     }
