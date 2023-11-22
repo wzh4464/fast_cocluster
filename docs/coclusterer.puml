@@ -1,0 +1,27 @@
+@startuml coclusterer
+
+class Coclusterer {
+    - matrix: Array2<f32>
+    - row: usize
+    - col: usize
+    - m: usize
+    - n: usize
+    - tol: f32
+    + new(matrix: Array2<f32>, m: usize, n: usize, tol: f32): Coclusterer
+    + cocluster(): Vec<Submatrix>
+}
+
+class Submatrix {
+    - matrix: Array2<f32>
+    - row_index: Vec<usize>
+    - col_index: Vec<usize>
+    - score: f32
+    + new(matrix: Array2<f32>, row_index: Vec<usize>, col_index: Vec<usize>): Submatrix
+    + update_score()
+    ' + fmt(f: &mut fmt::Formatter<'_>): fmt::Result <<Display>>
+    ' + fmt(f: &mut fmt::Formatter<'_>): fmt::Result <<Debug>>
+}
+
+Coclusterer --|> Submatrix : creates >
+
+@enduml

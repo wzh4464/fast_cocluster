@@ -1,0 +1,15 @@
+@startuml UnionDC
+' rust struct
+' pub struct UnionDC {}
+' impl UnionDC {
+    ' pub fn UnionDC<T, F>(VecDeque<T>,F, impl Fn(&VecDeque<T>) -> bool,
+    ' ) -> VecDeque<T>
+
+struct UnionDC {
+    ' no attributes
+    + UnionDC()
+    ' methods
+    + UnionDC(queue, func, end_condition) -> queue
+}
+
+@enduml

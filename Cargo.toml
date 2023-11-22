@@ -13,3 +13,4 @@ nalgebra = "0.26.2"
 kmeans = { path = "kmean-rs" }
 rand = "0.8.5"
 ndarray-rand = "0.14.0"
+ndarray-npz = "0.1.0"
