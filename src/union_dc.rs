@@ -3,7 +3,7 @@
  * Created Date: Wednesday November 22nd 2023
  * Author: Zihan
  * -----
- * Last Modified: Wednesday, 22nd November 2023 11:35:14 pm
+ * Last Modified: Thursday, 23rd November 2023 1:18:50 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -14,6 +14,14 @@
 use std::collections::VecDeque;
 
 pub struct UnionDC {}
+
+trait UnionDCImpl<T> {
+    fn union_dc(
+        queue: &mut VecDeque<T>,
+        func: impl Fn(T, T) -> T,
+        end_condition: impl Fn(&VecDeque<T>) -> bool,
+    );
+}
 
 impl UnionDC {
     pub fn union_dc<T, F>(
