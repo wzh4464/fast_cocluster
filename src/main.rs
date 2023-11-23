@@ -3,7 +3,7 @@
  * Created Date: Tuesday November 21st 2023
  * Author: Zihan
  * -----
- * Last Modified: Wednesday, 22nd November 2023 11:34:08 pm
+ * Last Modified: Thursday, 23rd November 2023 10:34:19 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -12,6 +12,7 @@
  */
 
 mod cocluster;
+pub mod matrix;
 use cocluster::Coclusterer;
 
 mod union_dc;
