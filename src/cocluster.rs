@@ -13,6 +13,7 @@
 
 // 在 cocluster.rs 文件中
 
+use na::Dyn;
 use ndarray::Array2;
 extern crate nalgebra as na;
 use std::fmt;
@@ -55,9 +56,9 @@ impl Coclusterer {
         // svd to get u,s,v
         let na_matrix: na::Matrix<
             f32,
-            na::Dynamic,
-            na::Dynamic,
-            na::VecStorage<f32, na::Dynamic, na::Dynamic>,
+            Dyn,
+            Dyn,
+            na::VecStorage<f32, Dyn, Dyn>,
         > = na::DMatrix::from_row_slice(
             self.matrix.shape()[0],
             self.matrix.shape()[1],
@@ -66,21 +67,21 @@ impl Coclusterer {
         let svd_result = na_matrix.svd(true, true);
         let u: na::Matrix<
             f32,
-            na::Dynamic,
-            na::Dynamic,
-            na::VecStorage<f32, na::Dynamic, na::Dynamic>,
+            Dyn,
+            Dyn,
+            na::VecStorage<f32, Dyn, Dyn>,
         > = svd_result.u.unwrap(); // shaped as (row, row)
         let vt: na::Matrix<
             f32,
-            na::Dynamic,
-            na::Dynamic,
-            na::VecStorage<f32, na::Dynamic, na::Dynamic>,
+            Dyn,
+            Dyn,
+            na::VecStorage<f32, Dyn, Dyn>,
         > = svd_result.v_t.unwrap(); // shaped as (col, col)
         let v: na::Matrix<
             f32,
-            na::Dynamic,
-            na::Dynamic,
-            na::VecStorage<f32, na::Dynamic, na::Dynamic>,
+            Dyn,
+            Dyn,
+            na::VecStorage<f32, Dyn, Dyn>,
         > = vt.transpose(); // shaped as (col, row)
 
         let u_data = u.data.as_vec().clone();
