@@ -16,6 +16,7 @@ pub mod matrix;
 use cocluster::Coclusterer;
 
 mod union_dc;
+use log::info;
 use union_dc::UnionDC;
 
 use ndarray::Array2;
@@ -24,10 +25,38 @@ use ndarray_rand::RandomExt;
 
 use std::collections::VecDeque;
 // #[cfg(debug_assertions)]
-use std::time::Instant;
 use rayon::prelude::*;
+use std::time::Instant;
 
 use nalgebra as na;
+
+use chrono;
+use fern;
+use log::LevelFilter;
+
+fn setup_logger() -> Result<(), fern::InitError> {
+    // Configure the logger
+    fern::Dispatch::new()
+        // Format the logs
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        // Set the default log level
+        .level(LevelFilter::Info)
+        // Add stdout logging
+        .chain(std::io::stdout())
+        // Add file logging
+        .chain(fern::log_file("output.log")?)
+        // Apply the configuration
+        .apply()?;
+    Ok(())
+}
 
 fn example_for_uniondc() {
     // generate a queue with integers [3,5,1,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9]
@@ -88,10 +117,24 @@ fn test_svd(height: usize, width: usize) {
 
         // 记录结束时间并打印耗时
         let end_time = Instant::now();
-        println!("Time cost: {:?}", end_time.duration_since(start_time));
+        // Log the time cost with a more informative message
+        let duration = end_time.duration_since(start_time);
+        info!(
+            "SVD for matrix of size {}x{} completed in: {:?} (hrs:min:sec.millis)",
+            height, width, duration
+        );
     });
 }
 
 fn main() {
-    test_svd(123968412, 2140022);
+    // i, j in [5000, 10000, 15000]
+    // test_svd(i, j)
+    setup_logger().expect("Failed to initialize logger");
+    let values = [5000, 10000, 15000];
+
+    for &i in &values {
+        for &j in &values {
+            test_svd(i, j);
+        }
+    }
 }
