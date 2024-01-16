@@ -1,15 +1,15 @@
-/*
- * File: /matrix.rs
+/**
+ * File: /src/matrix.rs
  * Created Date: Thursday November 23rd 2023
  * Author: Zihan
  * -----
- * Last Modified: Friday, 24th November 2023 2:18:35 am
+ * Last Modified: Tuesday, 16th January 2024 4:23:52 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
- */
+**/
 
 use std::ops::{Index, IndexMut};
 // Array2

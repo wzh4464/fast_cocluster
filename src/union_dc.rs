@@ -1,15 +1,15 @@
-/*
- * File: /union_dc.rs
- * Created Date: Wednesday November 22nd 2023
+/**
+ * File: /src/union_dc.rs
+ * Created Date: Thursday November 23rd 2023
  * Author: Zihan
  * -----
- * Last Modified: Thursday, 23rd November 2023 1:18:50 am
+ * Last Modified: Tuesday, 16th January 2024 4:24:04 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
- */
+**/
 
 use std::collections::VecDeque;
 

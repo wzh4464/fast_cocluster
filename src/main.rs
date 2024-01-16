@@ -1,15 +1,15 @@
-/*
- * File: /main.rs
- * Created Date: Tuesday November 21st 2023
+/**
+ * File: /src/main.rs
+ * Created Date: Friday January 12th 2024
  * Author: Zihan
  * -----
- * Last Modified: Thursday, 23rd November 2023 10:34:19 pm
+ * Last Modified: Tuesday, 16th January 2024 4:26:33 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
- */
+**/
 
 mod cocluster;
 pub mod matrix;

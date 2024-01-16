@@ -1,17 +1,16 @@
-/*
- * File: /cocluster.rs
- * Created Date: Tuesday November 21st 2023
+/**
+ * File: /src/cocluster.rs
+ * Created Date: Thursday December 28th 2023
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 21st November 2023 1:52:06 am
+ * Last Modified: Tuesday, 16th January 2024 4:22:01 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
- */
+**/
 
-// 在 cocluster.rs 文件中
 
 use na::Dyn;
 use ndarray::Array2;
