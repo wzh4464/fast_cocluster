@@ -14,3 +14,7 @@ kmeans = "0.2.1"
 rand = "0.8.5"
 ndarray-rand = "0.14.0"
 ndarray-npz = "0.1.0"
+
+[lib]
+name = "fast_cocluster"
+path = "src/lib.rs"
