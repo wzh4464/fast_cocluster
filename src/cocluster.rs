@@ -3,15 +3,13 @@
  * Created Date: Thursday December 28th 2023
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 16th January 2024 4:22:01 pm
+ * Last Modified: Monday, 22nd January 2024 2:56:27 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
 **/
-
-
 use na::Dyn;
 use ndarray::Array2;
 extern crate nalgebra as na;
@@ -53,35 +51,16 @@ impl Coclusterer {
     // k-means for rows and columns
     pub(crate) fn cocluster(&mut self) -> Vec<Submatrix> {
         // svd to get u,s,v
-        let na_matrix: na::Matrix<
-            f32,
-            Dyn,
-            Dyn,
-            na::VecStorage<f32, Dyn, Dyn>,
-        > = na::DMatrix::from_row_slice(
-            self.matrix.shape()[0],
-            self.matrix.shape()[1],
-            self.matrix.as_slice().unwrap(),
-        );
+        let na_matrix: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> =
+            na::DMatrix::from_row_slice(
+                self.matrix.shape()[0],
+                self.matrix.shape()[1],
+                self.matrix.as_slice().unwrap(),
+            );
         let svd_result = na_matrix.svd(true, true);
-        let u: na::Matrix<
-            f32,
-            Dyn,
-            Dyn,
-            na::VecStorage<f32, Dyn, Dyn>,
-        > = svd_result.u.unwrap(); // shaped as (row, row)
-        let vt: na::Matrix<
-            f32,
-            Dyn,
-            Dyn,
-            na::VecStorage<f32, Dyn, Dyn>,
-        > = svd_result.v_t.unwrap(); // shaped as (col, col)
-        let v: na::Matrix<
-            f32,
-            Dyn,
-            Dyn,
-            na::VecStorage<f32, Dyn, Dyn>,
-        > = vt.transpose(); // shaped as (col, row)
+        let u: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = svd_result.u.unwrap(); // shaped as (row, row)
+        let vt: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = svd_result.v_t.unwrap(); // shaped as (col, col)
+        let v: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = vt.transpose(); // shaped as (col, row)
 
         let u_data = u.data.as_vec().clone();
         let kmeans_u = KMeans::new(u_data, self.row, self.matrix.shape()[0]);
@@ -195,5 +174,66 @@ impl fmt::Debug for Submatrix {
         // Debug 实现通常类似于 Display，但可能包含更多详细信息
         // 这里只是简单复用了 Display 实现
         write!(f, "{}", self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use na::{Matrix3, QR};
+    use ndarray::Array2;
+    use rand::{random, Rng};
+
+    #[test]
+    // test for update_score
+    fn test_update_score() {
+        // submatrix is smaller than 3*3
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let mut submatrix = Submatrix::new(data, vec![0, 1], vec![0, 1]);
+        submatrix.update_score();
+        assert_eq!(submatrix.score, f32::INFINITY);
+
+        // submatrix is larger than 3*3
+        
+        /* 
+        A = U * S * V^T, where S = diag(2, 1, 0)
+        
+        test for submatrix:
+        |A.score - 0.5| < 1e-6
+        
+         */
+
+        // U, V random orthogonal matrix
+        let u_matrix = random_orthogonal_matrix();
+        let v_matrix = random_orthogonal_matrix();
+        // S diagonal matrix (2, 1, 0)
+        let s_matrix = Matrix3::new(2.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0., 0., 0.);
+        // A = U * S * V
+        let a_matrix = u_matrix * s_matrix * v_matrix.transpose();
+        let a_vec = a_matrix.as_slice().to_vec();
+
+        let mut submatrix = Submatrix::new(
+            Array2::<f32>::from_shape_vec((3, 3), a_vec).unwrap(),
+            vec![0, 1, 2],
+            vec![0, 1, 2],
+        );
+
+        submatrix.update_score();
+        // abs(1 - 0.5) < 1e-6
+        assert!(submatrix.score - 0.5 < 1e-6);
+        
+    }
+
+    fn random_orthogonal_matrix() -> Matrix3<f32> {
+        let mut rng = rand::thread_rng();
+    
+        // 随机生成一个 3x3 矩阵
+        let mat: Matrix3<f32> = Matrix3::from_fn(|_, _| rng.gen::<f32>());
+    
+        // 进行 QR 分解
+        let qr = QR::new(mat);
+        let q = qr.q();
+    
+        q
     }
 }
