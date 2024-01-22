@@ -9,8 +9,7 @@
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
-**/
-
+ */
 use std::collections::VecDeque;
 
 pub struct UnionDC {}
@@ -28,8 +27,7 @@ impl UnionDC {
         queue: &mut VecDeque<T>,
         mut func: F,
         end_condition: impl Fn(&VecDeque<T>) -> bool,
-    )
-    where
+    ) where
         F: FnMut(T, T) -> T,
     {
         while !end_condition(queue) {

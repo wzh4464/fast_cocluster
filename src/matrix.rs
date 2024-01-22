@@ -9,9 +9,9 @@
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
-**/
-
+ */
 use std::ops::{Index, IndexMut};
+
 // Array2
 use ndarray::Array2;
 use ndarray_rand::rand_distr::num_traits::Zero;
@@ -105,8 +105,8 @@ where
 
 struct MatrixSlice<'a, T> {
     original_matrix: &'a mut Matrix<T>,
-    row_range: std::ops::Range<usize>,
-    col_range: std::ops::Range<usize>,
+    row_range:       std::ops::Range<usize>,
+    col_range:       std::ops::Range<usize>,
 }
 
 impl<'a, T> MatrixSlice<'a, T> {
@@ -233,7 +233,7 @@ mod tests {
         assert_eq!(slice[(1, 0)], 8);
         assert_eq!(slice[(1, 1)], 9);
     }
-    
+
     #[test]
     fn test_slice_set() {
         // 3*3, select 1..3, 1..3
@@ -260,7 +260,7 @@ mod tests {
         // 3*3, select 1..3, 1..3
         let data = Array2::from_shape_vec((3, 3), vec![1, 2, 3, 4, 5, 6, 7, 8, 9]).unwrap();
         let mut matrix = Matrix::new(data);
-        let slice = matrix.slice_clone(&{1..3}, &{1..3});
+        let slice = matrix.slice_clone(&{ 1..3 }, &{ 1..3 });
         assert_eq!(slice.get(0, 0), Some(&5));
         assert_eq!(slice.get(0, 1), Some(&6));
         assert_eq!(slice.get(1, 0), Some(&8));

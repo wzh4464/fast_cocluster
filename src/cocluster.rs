@@ -9,7 +9,7 @@
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
-**/
+ */
 use na::Dyn;
 use ndarray::Array2;
 extern crate nalgebra as na;
@@ -23,13 +23,13 @@ pub struct Coclusterer {
     // need a matrix to init, float
     matrix: Array2<f32>,
     // shape of matrix
-    row: usize,
-    col: usize,
+    row:    usize,
+    col:    usize,
     // m,n to save cluster number for rows and columns
-    m: usize,
-    n: usize,
+    m:      usize,
+    n:      usize,
     // torlerance
-    tol: f32,
+    tol:    f32,
 }
 
 impl Coclusterer {
@@ -111,13 +111,13 @@ impl Coclusterer {
 }
 
 pub struct Submatrix {
-    matrix: Array2<f32>,
+    matrix:    Array2<f32>,
     // vector of row index
     row_index: Vec<usize>,
     // vector of col index
     col_index: Vec<usize>,
     // boolean vector of row index
-    score: f32,
+    score:     f32,
 }
 
 impl Submatrix {
@@ -179,10 +179,11 @@ impl fmt::Debug for Submatrix {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use na::{Matrix3, QR};
     use ndarray::Array2;
     use rand::{random, Rng};
+
+    use super::*;
 
     #[test]
     // test for update_score
@@ -194,13 +195,13 @@ mod tests {
         assert_eq!(submatrix.score, f32::INFINITY);
 
         // submatrix is larger than 3*3
-        
-        /* 
+
+        /*
         A = U * S * V^T, where S = diag(2, 1, 0)
-        
+
         test for submatrix:
         |A.score - 0.5| < 1e-6
-        
+
          */
 
         // U, V random orthogonal matrix
@@ -221,19 +222,18 @@ mod tests {
         submatrix.update_score();
         // abs(1 - 0.5) < 1e-6
         assert!(submatrix.score - 0.5 < 1e-6);
-        
     }
 
     fn random_orthogonal_matrix() -> Matrix3<f32> {
         let mut rng = rand::thread_rng();
-    
+
         // 随机生成一个 3x3 矩阵
         let mat: Matrix3<f32> = Matrix3::from_fn(|_, _| rng.gen::<f32>());
-    
+
         // 进行 QR 分解
         let qr = QR::new(mat);
         let q = qr.q();
-    
+
         q
     }
 }

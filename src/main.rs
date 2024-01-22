@@ -11,22 +11,20 @@
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
-**/
-
+ */
 mod cocluster;
 pub mod matrix;
 use cocluster::Coclusterer;
 
 mod union_dc;
-use union_dc::UnionDC;
+use std::collections::VecDeque;
+#[cfg(debug_assertions)]
+use std::time::Instant;
 
 use ndarray::Array2;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
-
-use std::collections::VecDeque;
-#[cfg(debug_assertions)]
-use std::time::Instant;
+use union_dc::UnionDC;
 
 // test Coclusterer
 
