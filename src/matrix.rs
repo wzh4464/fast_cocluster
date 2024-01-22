@@ -3,31 +3,50 @@
  * Created Date: Thursday November 23rd 2023
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 16th January 2024 4:23:52 pm
+ * Last Modified: Monday, 22nd January 2024 4:31:47 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
 **/
-
 use std::ops::{Index, IndexMut};
 // Array2
 use ndarray::Array2;
 use ndarray_rand::rand_distr::num_traits::Zero;
 
-struct Matrix<T> {
+/// `Matrix` 是一个通用的二维矩阵结构体，可以存储任何类型的数据。
+///
+/// # 结构体字段
+/// * `data`: 一个二维数组，存储矩阵中的元素。
+/// * `rows`: 矩阵的行数。
+/// * `cols`: 矩阵的列数。
+///
+/// # 示例
+///
+/// ```
+/// let data = Array2::from_elem((2, 2), 1.0);
+/// let matrix = Matrix { data, rows: 2, cols: 2 };
+/// ```
+pub struct Matrix<T> {
+    /// 二维数组，存储矩阵中的元素
     data: Array2<T>,
+    /// 矩阵的行数
     rows: usize,
+    /// 矩阵的列数
     cols: usize,
 }
-
 impl<T> Matrix<T> {
     // constructor with Array2<T>
     fn new(data: Array2<T>) -> Matrix<T> {
-        let rows = data.shape()[0];
-        let cols = data.shape()[1];
-        Matrix { data, rows, cols }
+        // let rows = data.shape()[0];
+        let rows: Option<usize> = Some(data.shape()[0]);
+        let cols: Option<usize> = Some(data.shape()[1]);
+        Matrix {
+            data,
+            rows: rows.unwrap(),
+            cols: cols.unwrap(),
+        }
     }
 
     fn get(&self, row: usize, col: usize) -> Option<&T> {
@@ -45,8 +64,33 @@ impl<T> Matrix<T> {
             Some(&mut self.data[(row, col)])
         }
     }
+
+    pub fn get_size(&self) -> (usize, usize) {
+        (self.rows, self.cols)
+    }
 }
 
+/// 为 `Matrix` 实现 `Index` trait，使得 `Matrix` 可以使用 `[]` 运算符来访问元素。
+///
+/// # 示例
+///
+/// ```
+/// let data = Array2::from_elem((2, 2), 1.0);
+/// let matrix = Matrix { data, rows: 2, cols: 2 };
+/// assert_eq!(matrix[(0, 0)], 1.0);
+/// assert_eq!(matrix[(0, 1)], 1.0);
+/// assert_eq!(matrix[(1, 0)], 1.0);
+/// assert_eq!(matrix[(1, 1)], 1.0);
+/// ```
+///
+/// # 参数
+/// * `index`: 一个元组，包含两个 `usize` 类型的元素，分别表示行号和列号。
+///
+/// # 返回值
+/// * `&T`: 返回一个指向矩阵中元素的引用。
+///
+/// # 错误
+/// 如果 `index` 中的行号或列号超出了矩阵的范围，则会产生 `panic`。
 impl<T> Index<(usize, usize)> for Matrix<T> {
     type Output = T;
 
@@ -166,6 +210,19 @@ mod tests {
     }
 
     #[test]
+    fn test_new_none_matrix() {
+        /*
+        matrix with 0 rows and 0 cols
+
+        return (0, 0)
+         */
+        let data = Array2::<i32>::zeros((0, 0));
+        let matrix = Matrix::new(data);
+        assert_eq!(matrix.rows, 0);
+        assert_eq!(matrix.cols, 0);
+    }
+
+    #[test]
     fn test_get() {
         let data = Array2::from_shape_vec((2, 2), vec![1, 2, 3, 4]).unwrap();
         let matrix = Matrix::new(data);
@@ -233,7 +290,7 @@ mod tests {
         assert_eq!(slice[(1, 0)], 8);
         assert_eq!(slice[(1, 1)], 9);
     }
-    
+
     #[test]
     fn test_slice_set() {
         // 3*3, select 1..3, 1..3
@@ -260,7 +317,7 @@ mod tests {
         // 3*3, select 1..3, 1..3
         let data = Array2::from_shape_vec((3, 3), vec![1, 2, 3, 4, 5, 6, 7, 8, 9]).unwrap();
         let mut matrix = Matrix::new(data);
-        let slice = matrix.slice_clone(&{1..3}, &{1..3});
+        let slice = matrix.slice_clone(&{ 1..3 }, &{ 1..3 });
         assert_eq!(slice.get(0, 0), Some(&5));
         assert_eq!(slice.get(0, 1), Some(&6));
         assert_eq!(slice.get(1, 0), Some(&8));

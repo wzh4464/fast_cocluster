@@ -3,7 +3,7 @@
  * Created Date: Thursday December 28th 2023
  * Author: Zihan
  * -----
- * Last Modified: Monday, 22nd January 2024 2:56:27 am
+ * Last Modified: Monday, 22nd January 2024 12:58:46 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -194,13 +194,13 @@ mod tests {
         assert_eq!(submatrix.score, f32::INFINITY);
 
         // submatrix is larger than 3*3
-        
-        /* 
+
+        /*
         A = U * S * V^T, where S = diag(2, 1, 0)
-        
+
         test for submatrix:
         |A.score - 0.5| < 1e-6
-        
+
          */
 
         // U, V random orthogonal matrix
@@ -221,19 +221,18 @@ mod tests {
         submatrix.update_score();
         // abs(1 - 0.5) < 1e-6
         assert!(submatrix.score - 0.5 < 1e-6);
-        
     }
 
     fn random_orthogonal_matrix() -> Matrix3<f32> {
         let mut rng = rand::thread_rng();
-    
+
         // 随机生成一个 3x3 矩阵
         let mat: Matrix3<f32> = Matrix3::from_fn(|_, _| rng.gen::<f32>());
-    
+
         // 进行 QR 分解
         let qr = QR::new(mat);
         let q = qr.q();
-    
+
         q
     }
 }
