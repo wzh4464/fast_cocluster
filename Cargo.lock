@@ -194,6 +194,8 @@ dependencies = [
 [[package]]
 name = "kmeans"
 version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76ccc6d18ad4bdf1b31a515991e73192cc1ef9e0ff06ea8ade4d95f80ee70352"
 dependencies = [
  "num",
  "packed_simd",

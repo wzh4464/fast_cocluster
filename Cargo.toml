@@ -10,7 +10,7 @@ ndarray = "0.15.6"
 rayon = "1.8.0"
 ndarray-parallel = "0.9.1"
 nalgebra = "0.32.3"
-kmeans = { path = "kmean-rs" }
+kmeans = "0.2.1"
 rand = "0.8.5"
 ndarray-rand = "0.14.0"
 ndarray-npz = "0.1.0"
