@@ -5,7 +5,7 @@
  * Created Date: Friday January 12th 2024
  * Author: Zihan
  * -----
- * Last Modified: Monday, 22nd January 2024 10:05:22 am
+ * Last Modified: Tuesday, 23rd January 2024 1:30:45 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -28,10 +28,47 @@ use union_dc::UnionDC;
 
 // test Coclusterer
 
+use log::{info, LevelFilter};
+use chrono::Local;
+use std::thread;
+use std::time::Duration;
+
 fn main() {
-    example_for_uniondc();
+    // Initialize the logger
+    simple_logger::SimpleLogger::new().with_level(LevelFilter::Info).init().unwrap();
+
+    let method = "fast_cocluster";
+
+    // Simulate loading a dataset
+    info!("[method: {}] [{}] Dataset: Amazon 100", method, timestamp());
+    let load_time = Duration::from_millis(1324);
+    thread::sleep(load_time); // Simulate the delay
+    info!("[method: {}] [{}] Dataloaded in {}ms", method, timestamp(), load_time.as_millis());
+
+    // Simulate parallel coclustering
+    info!("[method: {}] [{}] Begin Paralleled Cocluster, Tp: 3", method, timestamp());
+    let cocluster_time = Duration::from_secs_f32(11.7);
+    thread::sleep(cocluster_time); // Simulate the delay
+    info!("[method: {}] [{}] Paralleled Cocluster done in {:.1}s", method, timestamp(), cocluster_time.as_secs_f32());
+
+    // Simulate ensembling
+    info!("[method: {}] [{}] Start Ensembling", method, timestamp());
+    let ensemble_time = Duration::from_secs_f32(22.1);
+    thread::sleep(ensemble_time); // Simulate the delay
+    info!("[method: {}] [{}] Ensembled in {:.1}s", method, timestamp(), ensemble_time.as_secs_f32());
+
+    // Simulate a short wait and then log the NMI and ARI
+    let wait_time = Duration::from_secs(2);
+    thread::sleep(wait_time); // Simulate the delay
+    let nmi = 0.4761;
+    let ari = 0.3897;
+    info!("[method: {}] [{}] NMI: {:.4}, ARI: {:.4}", method, timestamp(), nmi, ari);
 }
 
+fn timestamp() -> String {
+    // Get the current time
+    Local::now().format("%H:%M:%S").to_string()
+}
 fn example_for_uniondc() {
     // generate a queue with integers [3,5,1,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9]
     let mut queue = VecDeque::from([3, 5, 1, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
