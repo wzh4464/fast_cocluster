@@ -5,7 +5,7 @@ use std::fs::File;
  * Created Date: Friday, January 26th 2024
  * Author: Zihan
  * -----
- * Last Modified: Friday, 26th January 2024 9:46:15 pm
+ * Last Modified: Friday, 26th January 2024 10:00:00 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -63,6 +63,30 @@ impl Config {
             col,
         })
     }
+
+    pub fn get_matrix(&self) -> &Array2<f32> {
+        &self.matrix
+    }
+
+    pub fn get_m(&self) -> usize {
+        self.m
+    }
+
+    pub fn get_n(&self) -> usize {
+        self.n
+    }
+
+    pub fn get_tol(&self) -> f32 {
+        self.tol
+    }
+
+    pub fn get_row(&self) -> usize {
+        self.row
+    }
+
+    pub fn get_col(&self) -> usize {
+        self.col
+    }
 }
 
 // cargo run -- /home/zihan/amazon_data/feature_matrix.npy 4 5 1e-4
@@ -86,5 +110,12 @@ mod tests {
         assert_eq!(config.tol, 1e-4);
         assert_eq!(config.row, 24000);
         assert_eq!(config.col, 768);
+
+        // get methods
+        assert_eq!(config.get_m(), 4);
+        assert_eq!(config.get_n(), 5);
+        assert_eq!(config.get_tol(), 1e-4);
+        assert_eq!(config.get_row(), 24000);
+        assert_eq!(config.get_col(), 768);
     }
 }
