@@ -204,6 +204,7 @@ dependencies = [
  "log",
  "nalgebra",
  "ndarray 0.15.6",
+ "ndarray-npy",
  "ndarray-npz",
  "ndarray-parallel",
  "ndarray-rand",
@@ -443,6 +444,7 @@ dependencies = [
  "num-complex 0.4.4",
  "num-traits",
  "py_literal",
+ "zip 0.5.13",
 ]
 
 [[package]]
@@ -454,7 +456,7 @@ dependencies = [
  "crc32fast",
  "ndarray 0.15.6",
  "ndarray-npy",
- "zip",
+ "zip 0.6.6",
 ]
 
 [[package]]
@@ -1197,6 +1199,18 @@ name = "windows_x86_64_msvc"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dff9641d1cd4be8d1a070daf9e3773c5f67e78b4d9d42263020c057706765c04"
+
+[[package]]
+name = "zip"
+version = "0.5.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93ab48844d61251bb3835145c521d88aa4031d7139e8485990f60ca911fa0815"
+dependencies = [
+ "byteorder",
+ "crc32fast",
+ "flate2",
+ "thiserror",
+]
 
 [[package]]
 name = "zip"
