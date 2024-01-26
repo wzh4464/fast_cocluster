@@ -4,7 +4,7 @@
  * Created Date: Monday January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Friday, 26th January 2024 9:01:23 pm
+ * Last Modified: Friday, 26th January 2024 9:58:25 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -31,6 +31,23 @@ use ndarray_rand::RandomExt;
 use union_dc::UnionDC;
 
 pub mod submatrix;
+mod config;
+
+pub fn run() {
+    let configuration = new_config();
+    
+}
+
+fn new_config() -> config::Config {
+    let args = vec![
+        "target/debug/fast_cocluster".to_string(),
+        "/home/zihan/amazon_data/feature_matrix.npy".to_string(),
+        "4".to_string(),
+        "5".to_string(),
+        "1e-4".to_string(),
+    ];
+    config::Config::new(args.into_iter()).unwrap()
+}
 
 fn timestamp() -> String {
     // Get the current time
