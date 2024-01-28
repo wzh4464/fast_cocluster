@@ -4,7 +4,7 @@
  * Created Date: Monday January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Friday, 26th January 2024 9:58:25 pm
+ * Last Modified: Sunday, 28th January 2024 4:49:43 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -81,7 +81,7 @@ pub fn test_cocluster() {
     #[cfg(debug_assertions)]
     let start_time = Instant::now();
 
-    println!("{:?}", coclusterer.cocluster());
+    // println!("{}", coclusterer.cocluster());
     #[cfg(debug_assertions)]
     {
         // count time end
