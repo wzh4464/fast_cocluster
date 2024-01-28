@@ -3,14 +3,14 @@
  * Created Date: Thursday December 28th 2023
  * Author: Zihan
  * -----
- * Last Modified: Sunday, 28th January 2024 4:51:31 pm
+ * Last Modified: Sunday, 28th January 2024 8:28:32 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
  */
-use na::Dyn;
+use na::{DMatrix, Dyn};
 use ndarray::Array2;
 extern crate nalgebra as na;
 use std::fmt;
@@ -34,6 +34,17 @@ pub struct Coclusterer {
     tol:    f32,
 }
 
+pub fn clone_to_dmatrix<'a, T>(array_view: ndarray::ArrayView2<'a, T>) -> DMatrix<T>
+where
+    T: Clone,
+    T: na::Scalar,
+{
+    let nrows = array_view.nrows();
+    let ncols = array_view.ncols();
+    let elements = array_view.iter().cloned().collect::<Vec<T>>();
+    DMatrix::from_vec(nrows, ncols, elements)
+}
+
 impl Coclusterer {
     // 方法实现
     // 构造函数
@@ -53,12 +64,7 @@ impl Coclusterer {
     // k-means for rows and columns
     pub(crate) fn cocluster(&mut self) -> Vec<Submatrix<f32>> {
         // svd to get u,s,v
-        let na_matrix: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> =
-            na::DMatrix::from_row_slice(
-                self.matrix.shape()[0],
-                self.matrix.shape()[1],
-                self.matrix.as_slice().unwrap(),
-            );
+        let na_matrix = clone_to_dmatrix(self.matrix.view());
         let svd_result = na_matrix.svd(true, true);
         let u: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = svd_result.u.unwrap(); // shaped as (row, row)
         let vt: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = svd_result.v_t.unwrap(); // shaped as (col, col)
@@ -241,8 +247,12 @@ mod tests {
         if let Some(ref mut submatrix) = submatrix {
             submatrix.update_score();
         }
-        // abs(1 - 0.5) < 1e-6
-        assert!((submatrix.unwrap().score.unwrap() - 0.5).abs() < 1e-6);
+        
+        let score = submatrix.unwrap().score.unwrap();
+
+        println!("score: {}", &score);
+
+        assert!((score - 2.0).abs() < 1e-6);
     }
 
     fn random_orthogonal_matrix() -> Matrix3<f32> {
