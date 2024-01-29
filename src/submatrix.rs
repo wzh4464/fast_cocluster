@@ -22,6 +22,7 @@ use ndarray_linalg::error::LinalgError;
 use ndarray_linalg::{Lapack, SVDInplace, Scalar, SVD};
 use ndarray_rand::rand_distr::num_traits::real::Real;
 use std::ops::{Div, Index};
+use nalgebra::DMatrix;
 
 use crate::cocluster;
 
@@ -96,6 +97,20 @@ where
         let row_indices = row_indices.to_vec();
         let col_indices = col_indices.to_vec();
         Self::new(matrix, row_indices, col_indices)
+    }
+
+
+    fn clone_to_dmatrix(&self) -> DMatrix<T>
+    {
+        let submatrix: Array2<T> = self
+        .data
+        .select(ndarray::Axis(0), &self.row_indices)
+        .select(ndarray::Axis(1), &self.col_indices);
+
+        let nrows = submatrix.view().nrows();
+        let ncols = submatrix.view().ncols();
+        let elements = submatrix.view().iter().cloned().collect::<Vec<T>>();
+        DMatrix::from_vec(nrows, ncols, elements)
     }
 
     pub fn get(&self, row: usize, col: usize) -> Option<&T> {
@@ -199,12 +214,8 @@ where
         //     .select(ndarray::Axis(1), &self.col_indices)
         //     .to_owned()
         //     .svd_inplace(calc_u, calc_vt)
-        let submatrix: Array2<T> = self
-            .data
-            .select(ndarray::Axis(0), &self.row_indices)
-            .select(ndarray::Axis(1), &self.col_indices);
 
-        dbg!(&submatrix);
+        // dbg!(&submatrix);
 
         // match submatrix.as_slice() {
         //     None => {
@@ -213,7 +224,7 @@ where
         //     Some(_) => (),
         // }
 
-        let na_matrix = cocluster::clone_to_dmatrix(submatrix.view());
+        let na_matrix = self.clone_to_dmatrix();
         let svd_result = na_matrix.svd(true, true);
         let u: na::Matrix<T, Dyn, Dyn, na::VecStorage<T, Dyn, Dyn>> = svd_result.u.unwrap(); // shaped as (row, row)
         let vt: na::Matrix<T, Dyn, Dyn, na::VecStorage<T, Dyn, Dyn>> = svd_result.v_t.unwrap(); // shaped as (col, col)
@@ -276,9 +287,11 @@ mod tests {
 
         let b = Submatrix::from_indices(&a, &[0, 2], &[1, 2]).unwrap();
 
-        println!("{:}", b);
+        // println!("{:}", b);
 
         let (_, s, _) = b.svd(false, false).unwrap();
+
+        // println!("{:?}", s);
 
         // roughly equal to 0.0
         assert!((s[0] - 12.5607).abs() < 1e-3);
