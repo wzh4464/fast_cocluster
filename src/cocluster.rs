@@ -1,6 +1,6 @@
 /**
  * File: /src/cocluster.rs
- * Created Date: Thursday December 28th 2023
+ * Created Date: Thursday, December 28th 2023
  * Author: Zihan
  * -----
  * Last Modified: Sunday, 28th January 2024 8:28:32 pm
@@ -30,11 +30,11 @@ pub struct Coclusterer {
     // m,n to save cluster number for rows and columns
     m:      usize,
     n:      usize,
-    // torlerance
+    // tolerance
     tol:    f32,
 }
 
-pub fn clone_to_dmatrix<'a, T>(array_view: ndarray::ArrayView2<'a, T>) -> DMatrix<T>
+pub fn clone_to_dmatrix<T>(array_view: ndarray::ArrayView2<T>) -> DMatrix<T>
 where
     T: Clone,
     T: na::Scalar,
@@ -209,7 +209,7 @@ mod tests {
     #[test]
     // test for update_score
     fn test_update_score() {
-        // submatrix is smaller than 3*3
+        // submatrix is smaller than 3 *. 3
         let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
         let mut submatrix = Submatrix::new(&data, vec![0, 1], vec![0, 1]);
         

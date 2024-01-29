@@ -1,10 +1,10 @@
-use std::ops::{Div, Index};
-use ndarray::iter::Iter;
-use ndarray_linalg::error::LinalgError;
 use na::{ComplexField, Dyn};
+use nalgebra as na;
+use nalgebra::linalg::SVD as nalgebra_SVD;
+use ndarray::iter::Iter;
 /**
  * File: /src/Submatrix.rs
- * Created Date: Monday January 22nd 2024
+ * Created Date: Monday, January 22nd 2024
  * Author: Zihan
  * -----
  * Last Modified: Sunday, 28th January 2024 8:25:36 pm
@@ -18,10 +18,10 @@ use na::{ComplexField, Dyn};
 /// Extend the usage of slice for ndarray
 /// struct Submatrix and impl
 use ndarray::{Array1, Array2, ArrayView2};
+use ndarray_linalg::error::LinalgError;
 use ndarray_linalg::{Lapack, SVDInplace, Scalar, SVD};
-use nalgebra::linalg::SVD as nalgebra_SVD;
-use nalgebra as na;
 use ndarray_rand::rand_distr::num_traits::real::Real;
+use std::ops::{Div, Index};
 
 use crate::cocluster;
 
@@ -40,24 +40,24 @@ use crate::submatrix;
 /// ```
 /// b = [[2, 3],
 ///     [8, 9]]
-pub struct Submatrix<'a, T> 
+pub struct Submatrix<'a, T>
 where
     T: Scalar + Lapack,
     T: ComplexField,
-    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>
+    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>,
 {
-    pub data:        ArrayView2<'a, T>,
+    pub data: ArrayView2<'a, T>,
     pub row_indices: Vec<usize>,
     pub col_indices: Vec<usize>,
-    pub score:       Option<<T as Scalar>::Real>,
+    pub score: Option<<T as Scalar>::Real>,
 }
 
-impl<'a, T> Submatrix<'a, T> 
+impl<'a, T> Submatrix<'a, T>
 where
     T: Scalar + Lapack,
     T: Div,
     T: ComplexField,
-    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>
+    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>,
 {
     pub fn new(
         matrix: &'a Array2<T>,
@@ -87,7 +87,7 @@ where
         }
     }
 
-    // give `new` a nick name: from_indices to pub
+    // give `new` a nickname: from_indices to pub
     pub fn from_indices(
         matrix: &'a Array2<T>,
         row_indices: &[usize],
@@ -115,12 +115,11 @@ where
             return;
         }
 
-        // calculate svd and get first two singular values
+        // calculate svd and get the first two singular values
 
         let svd_result = self.svd(true, true).unwrap(); // Unwrap once and store
         let s1 = svd_result.1[0]; // Access the elements of the unwrapped result
         let s2 = svd_result.1[1];
-        
 
         // calculate score
         self.score = Some(s1 / s2);
@@ -131,11 +130,11 @@ where
     // }
 }
 
-impl<'a, T> Index<(usize, usize)> for Submatrix<'a, T> 
+impl<'a, T> Index<(usize, usize)> for Submatrix<'a, T>
 where
     T: Scalar + Lapack,
     T: ComplexField,
-    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>
+    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>,
 {
     type Output = T;
 
@@ -159,7 +158,6 @@ impl std::fmt::Debug for Submatrix<'_, f32> {
     }
 }
 
-
 // impl Display
 /// # Example
 /// ```log
@@ -171,46 +169,38 @@ where
     T: std::fmt::Display,
     T: Scalar + Lapack,
     T: ComplexField,
-    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>
+    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>,
+    Submatrix<'a, T>: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut s = String::new();
-        for i in 0..self.row_indices.len() {
-            s.push_str("[");
-            for j in 0..self.col_indices.len() {
-                s.push_str(&format!("{}, ", &self[(i, j)]));
-            }
-            s.push_str("]\n");
-        }
-
-        write!(f, "{}", s)
+        std::fmt::Debug::fmt(&self, f)
     }
 }
 
 // impl SVD in ndarray_linalg for Submatrix
-impl<'a, T> SVD for Submatrix<'a, T> 
+impl<'a, T> SVD for Submatrix<'a, T>
 where
     T: Scalar + Lapack,
     T: ComplexField,
-    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>
+    <T as ComplexField>::RealField: Into<<T as Scalar>::Real>,
 {
     type U = Array2<T>;
-    type Sigma = Array1<<T as Scalar>::Real>;
     type VT = Array2<T>;
+    type Sigma = Array1<<T as Scalar>::Real>;
 
     fn svd(
         &self,
         calc_u: bool,
         calc_vt: bool,
-    ) -> Result<(Option<Self::U>, Self::Sigma, Option<Self::VT>), LinalgError>
-    {
+    ) -> Result<(Option<Self::U>, Self::Sigma, Option<Self::VT>), LinalgError> {
         // 提取子矩阵
         // self.data.
         //     select(ndarray::Axis(0), &self.row_indices)
         //     .select(ndarray::Axis(1), &self.col_indices)
         //     .to_owned()
         //     .svd_inplace(calc_u, calc_vt)
-        let submatrix: Array2<T> = self.data
+        let submatrix: Array2<T> = self
+            .data
             .select(ndarray::Axis(0), &self.row_indices)
             .select(ndarray::Axis(1), &self.col_indices);
 
@@ -223,21 +213,16 @@ where
         //     Some(_) => (),
         // }
 
-
         let na_matrix = cocluster::clone_to_dmatrix(submatrix.view());
         let svd_result = na_matrix.svd(true, true);
         let u: na::Matrix<T, Dyn, Dyn, na::VecStorage<T, Dyn, Dyn>> = svd_result.u.unwrap(); // shaped as (row, row)
         let vt: na::Matrix<T, Dyn, Dyn, na::VecStorage<T, Dyn, Dyn>> = svd_result.v_t.unwrap(); // shaped as (col, col)
         let v: na::Matrix<T, Dyn, Dyn, na::VecStorage<T, Dyn, Dyn>> = vt.transpose(); // shaped as (col, row)
-        
-        let u_ndarray: Array2<T> = Array2::from_shape_vec(
-            (u.nrows(), u.ncols()),
-            u.data.as_vec().clone(),
-        ).unwrap();
-        let v_ndarray: Array2<T> = Array2::from_shape_vec(
-            (v.nrows(), v.ncols()),
-            v.data.as_vec().clone(),
-        ).unwrap();
+
+        let u_ndarray: Array2<T> =
+            Array2::from_shape_vec((u.nrows(), u.ncols()), u.data.as_vec().clone()).unwrap();
+        let v_ndarray: Array2<T> =
+            Array2::from_shape_vec((v.nrows(), v.ncols()), v.data.as_vec().clone()).unwrap();
 
         let v_ndarray: Array2<T> = v_ndarray.t().to_owned();
 
@@ -247,17 +232,16 @@ where
         //     svd_result.singular_values.data.as_vec().clone(),
         // ).unwrap();
 
-        // add 0 image part to s_ndarray
+        // add 0 image parts to s_ndarray
         let tmp: Array1<<T as ComplexField>::RealField> = Array1::from_shape_vec(
             (svd_result.singular_values.len()),
             svd_result.singular_values.data.as_vec().clone(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let s_ndarray: Array1<<T as Scalar>::Real> = convert::<T>(tmp);
 
         Ok((Some(u_ndarray), s_ndarray, Some(v_ndarray)))
-
-
     }
 }
 
@@ -274,7 +258,7 @@ mod tests {
     use super::*;
 
     #[test]
-    /// test for reslice of a submatrix to a new submatrix
+    /// Test for reslice of a submatrix to a new submatrix
     ///
     /// A = \[\[1, 2, 3\],
     ///     \[4, 5, 6\],
@@ -286,18 +270,17 @@ mod tests {
     ///
     /// C = \[\[9\]\]
     fn test_new_submatrix() {
-        let a: Array2<f32> = Array2::from_shape_vec(
-            (3, 3),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
-        ).unwrap();
+        let a: Array2<f32> =
+            Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+                .unwrap();
 
         let b = Submatrix::from_indices(&a, &[0, 2], &[1, 2]).unwrap();
 
-        println!("{:?}", b);
+        println!("{:}", b);
 
         let (_, s, _) = b.svd(false, false).unwrap();
 
         // roughly equal to 0.0
-        assert!((s[0] -12.5607).abs() < 1e-3); 
+        assert!((s[0] - 12.5607).abs() < 1e-3);
     }
 }

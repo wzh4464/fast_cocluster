@@ -4,7 +4,7 @@ use std::env::args;
 
 /**
  * File: /src/main.rs
- * Created Date: Friday January 12th 2024
+ * Created Date: Friday, January 12th 2024
  * Author: Zihan
  * -----
  * Last Modified: Friday, 26th January 2024 9:37:40 pm
