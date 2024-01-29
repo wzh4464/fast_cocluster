@@ -1,13 +1,16 @@
+use std::ops::{Div, Index};
+
 use na::{ComplexField, Dyn};
 use nalgebra as na;
 use nalgebra::linalg::SVD as nalgebra_SVD;
+use nalgebra::DMatrix;
 use ndarray::iter::Iter;
 /**
  * File: /src/Submatrix.rs
  * Created Date: Monday, January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Sunday, 28th January 2024 8:25:36 pm
+ * Last Modified: Monday, 29th January 2024 11:52:01 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -21,11 +24,8 @@ use ndarray::{Array1, Array2, ArrayView2};
 use ndarray_linalg::error::LinalgError;
 use ndarray_linalg::{Lapack, SVDInplace, Scalar, SVD};
 use ndarray_rand::rand_distr::num_traits::real::Real;
-use std::ops::{Div, Index};
-use nalgebra::DMatrix;
 
 use crate::cocluster;
-
 use crate::submatrix;
 
 ///
@@ -47,10 +47,10 @@ where
     T: ComplexField,
     <T as ComplexField>::RealField: Into<<T as Scalar>::Real>,
 {
-    pub data: ArrayView2<'a, T>,
+    pub data:        ArrayView2<'a, T>,
     pub row_indices: Vec<usize>,
     pub col_indices: Vec<usize>,
-    pub score: Option<<T as Scalar>::Real>,
+    pub score:       Option<<T as Scalar>::Real>,
 }
 
 impl<'a, T> Submatrix<'a, T>
@@ -99,13 +99,11 @@ where
         Self::new(matrix, row_indices, col_indices)
     }
 
-
-    fn clone_to_dmatrix(&self) -> DMatrix<T>
-    {
+    fn clone_to_dmatrix(&self) -> DMatrix<T> {
         let submatrix: Array2<T> = self
-        .data
-        .select(ndarray::Axis(0), &self.row_indices)
-        .select(ndarray::Axis(1), &self.col_indices);
+            .data
+            .select(ndarray::Axis(0), &self.row_indices)
+            .select(ndarray::Axis(1), &self.col_indices);
 
         let nrows = submatrix.view().nrows();
         let ncols = submatrix.view().ncols();
@@ -208,22 +206,6 @@ where
         calc_u: bool,
         calc_vt: bool,
     ) -> Result<(Option<Self::U>, Self::Sigma, Option<Self::VT>), LinalgError> {
-        // 提取子矩阵
-        // self.data.
-        //     select(ndarray::Axis(0), &self.row_indices)
-        //     .select(ndarray::Axis(1), &self.col_indices)
-        //     .to_owned()
-        //     .svd_inplace(calc_u, calc_vt)
-
-        // dbg!(&submatrix);
-
-        // match submatrix.as_slice() {
-        //     None => {
-        //         return Err(LinalgError::MemoryNotCont)
-        //     }
-        //     Some(_) => (),
-        // }
-
         let na_matrix = self.clone_to_dmatrix();
         let svd_result = na_matrix.svd(true, true);
         let u: na::Matrix<T, Dyn, Dyn, na::VecStorage<T, Dyn, Dyn>> = svd_result.u.unwrap(); // shaped as (row, row)
@@ -237,20 +219,25 @@ where
 
         let v_ndarray: Array2<T> = v_ndarray.t().to_owned();
 
-        //type of svd_result.singular_values: OVector<T::RealField, DimMinimum<R, C>>
-        // let s_ndarray: Array1<<T as Scalar>::Real> = Array1::from_shape_vec(
-        //     (svd_result.singular_values.len()),
-        //     svd_result.singular_values.data.as_vec().clone(),
-        // ).unwrap();
-
-        // add 0 image parts to s_ndarray
-        let tmp: Array1<<T as ComplexField>::RealField> = Array1::from_shape_vec(
+        let s_ndarray= Array1::from_shape_vec(
             (svd_result.singular_values.len()),
             svd_result.singular_values.data.as_vec().clone(),
-        )
-        .unwrap();
+        );
 
-        let s_ndarray: Array1<<T as Scalar>::Real> = convert::<T>(tmp);
+
+        
+        let s = match s_ndarray {
+            Ok(s) => s,
+            Err(_) => return  Err(
+                LinalgError::Shape(
+                    ndarray::ShapeError::from_kind(
+                        ndarray::ErrorKind::IncompatibleShape
+                    )
+                )
+            )
+        };
+
+        let s_ndarray: Array1<<T as Scalar>::Real> = convert::<T>(s);
 
         Ok((Some(u_ndarray), s_ndarray, Some(v_ndarray)))
     }
