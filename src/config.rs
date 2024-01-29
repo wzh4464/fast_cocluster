@@ -1,31 +1,31 @@
-use std::fs::File;
-
+use ndarray::Array2;
+use ndarray_npy::ReadNpyExt;
 /**
  * File: /src/config.rs
  * Created Date: Friday, January 26th 2024
  * Author: Zihan
  * -----
- * Last Modified: Friday, 26th January 2024 10:00:00 pm
+ * Last Modified: Monday, 29th January 2024 1:40:46 pm
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
+ * 29-01-2024		Zihan	change the config tests
  */
-use ndarray::Array2;
-use ndarray_npy::ReadNpyExt;
+use std::fs::File;
 pub struct Config {
     // 字段定义
     // need a matrix to init, float
     matrix: Array2<f32>,
     // shape of matrix
-    row:    usize,
-    col:    usize,
+    row: usize,
+    col: usize,
     // m,n to save cluster number for rows and columns
-    m:      usize,
-    n:      usize,
+    m: usize,
+    n: usize,
     // torlerance
-    tol:    f32,
+    tol: f32,
 }
 
 impl Config {
@@ -89,17 +89,19 @@ impl Config {
     }
 }
 
-// cargo run -- /home/zihan/amazon_data/feature_matrix.npy 4 5 1e-4
-// Running `target/debug/fast_cocluster /home/zihan/amazon_data/feature_matrix.npy 4 5 1e-4`
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_new_config() {
+        // make npy file at target/debug/fast_cocluster/test.npy
+        let file = File::create("target/debug/test.npy").unwrap();
+        ndarray_npy::WriteNpyExt::write_npy(&ndarray::Array2::<f32>::zeros((24000, 768)), file)
+            .unwrap();
         let args = vec![
             "target/debug/fast_cocluster".to_string(),
-            "/home/zihan/amazon_data/feature_matrix.npy".to_string(),
+            "target/debug/test.npy".to_string(),
             "4".to_string(),
             "5".to_string(),
             "1e-4".to_string(),
