@@ -1,3 +1,7 @@
 [submodule "kmean-rs"]
 	path = kmean-rs
 	url = https://github.com/wzh4464/kmean-rs.git
+[submodule "kmeans"]
+	path = kmeans
+	url = git@github.com:wzh4464/kmean-rs.git
+	branch = upper_master
