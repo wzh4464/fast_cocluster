@@ -15,8 +15,8 @@ use ndarray::Array2;
 extern crate nalgebra as na;
 use std::fmt;
 
-// use kmeans
-use kmeans::{KMeans, KMeansConfig};
+// use kmeans_smid
+use kmeans_smid::{KMeans, KMeansConfig};
 
 use crate::submatrix::Submatrix;
 
@@ -71,7 +71,7 @@ impl Coclusterer {
         let v: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = vt.transpose(); // shaped as (col, row)
 
         let u_data = u.data.as_vec().clone();
-        let kmeans_u = KMeans::new(u_data, self.row, self.matrix.shape()[0]);
+        let kmeans_u: KMeans<f32, 8> = KMeans::new(u_data, self.row, self.matrix.shape()[0]);
         // there is an assert for samples.len() == sample_cnt * sample_dims
         let result_u = kmeans_u.kmeans_lloyd(
             self.m,
@@ -82,7 +82,7 @@ impl Coclusterer {
 
         // 对 v 应用 K-means
         let v_data = v.data.as_vec().clone();
-        let kmeans_v = KMeans::new(v_data, self.col, self.matrix.shape()[1]);
+        let kmeans_v: KMeans<f32, 8> = KMeans::new(v_data, self.col, self.matrix.shape()[1]);
         let result_v = kmeans_v.kmeans_lloyd(
             self.n,
             100,
