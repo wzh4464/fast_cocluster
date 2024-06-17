@@ -3,7 +3,7 @@
  * Created Date: Thursday, November 23rd 2023
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 16th January 2024 4:23:52 pm
+ * Last Modified: Tuesday, 18th June 2024 12:53:42 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -16,6 +16,7 @@ use std::ops::{Index, IndexMut};
 use ndarray::Array2;
 use ndarray_rand::rand_distr::num_traits::Zero;
 
+/// A generic matrix structure using `ndarray::Array2`.
 struct Matrix<T> {
     data: Array2<T>,
     rows: usize,
@@ -23,13 +24,31 @@ struct Matrix<T> {
 }
 
 impl<T> Matrix<T> {
-    // constructor with Array2<T>
+    /// Creates a new `Matrix` from an `Array2`.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - An `Array2` containing the matrix data.
+    ///
+    /// # Returns
+    ///
+    /// * A new `Matrix` containing the provided data.
     fn new(data: Array2<T>) -> Matrix<T> {
         let rows = data.shape()[0];
         let cols = data.shape()[1];
         Matrix { data, rows, cols }
     }
 
+    /// Returns a reference to the element at the specified row and column, or `None` if the indices are out of bounds.
+    ///
+    /// # Arguments
+    ///
+    /// * `row` - The row index.
+    /// * `col` - The column index.
+    ///
+    /// # Returns
+    ///
+    /// * An `Option` containing a reference to the element if it exists, or `None`.
     fn get(&self, row: usize, col: usize) -> Option<&T> {
         if row >= self.rows || col >= self.cols {
             None
@@ -38,6 +57,16 @@ impl<T> Matrix<T> {
         }
     }
 
+    /// Returns a mutable reference to the element at the specified row and column, or `None` if the indices are out of bounds.
+    ///
+    /// # Arguments
+    ///
+    /// * `row` - The row index.
+    /// * `col` - The column index.
+    ///
+    /// # Returns
+    ///
+    /// * An `Option` containing a mutable reference to the element if it exists, or `None`.
     fn get_mut(&mut self, row: usize, col: usize) -> Option<&mut T> {
         if row >= self.rows || col >= self.cols {
             None
@@ -67,7 +96,16 @@ impl<T> Matrix<T>
 where
     T: Clone + Zero,
 {
-    // 添加一个方法来获取子集
+    /// Creates a new `Matrix` containing a clone of the elements in the specified row and column ranges.
+    ///
+    /// # Arguments
+    ///
+    /// * `row_range` - A range specifying the rows to include in the new matrix.
+    /// * `col_range` - A range specifying the columns to include in the new matrix.
+    ///
+    /// # Returns
+    ///
+    /// * A new `Matrix` containing the elements in the specified ranges.
     pub fn slice_clone(
         &self,
         row_range: &std::ops::Range<usize>,
@@ -103,6 +141,7 @@ where
     }
 }
 
+/// A structure representing a slice of a `Matrix`.
 struct MatrixSlice<'a, T> {
     original_matrix: &'a mut Matrix<T>,
     row_range:       std::ops::Range<usize>,
@@ -110,6 +149,17 @@ struct MatrixSlice<'a, T> {
 }
 
 impl<'a, T> MatrixSlice<'a, T> {
+    /// Creates a new `MatrixSlice`.
+    ///
+    /// # Arguments
+    ///
+    /// * `matrix` - A mutable reference to the original matrix.
+    /// * `row_range` - A range specifying the rows to include in the slice.
+    /// * `col_range` - A range specifying the columns to include in the slice.
+    ///
+    /// # Returns
+    ///
+    /// * A new `MatrixSlice` containing references to the specified elements in the original matrix.
     pub fn new(
         matrix: &'a mut Matrix<T>,
         row_range: std::ops::Range<usize>,
@@ -122,6 +172,16 @@ impl<'a, T> MatrixSlice<'a, T> {
         }
     }
 
+    /// Returns a reference to the element at the specified row and column within the slice, or `None` if the indices are out of bounds.
+    ///
+    /// # Arguments
+    ///
+    /// * `row` - The row index within the slice.
+    /// * `col` - The column index within the slice.
+    ///
+    /// # Returns
+    ///
+    /// * An `Option` containing a reference to the element if it exists, or `None`.
     pub fn get(&self, row: usize, col: usize) -> Option<&T> {
         if row >= self.row_range.end - self.row_range.start
             || col >= self.col_range.end - self.col_range.start
@@ -132,6 +192,13 @@ impl<'a, T> MatrixSlice<'a, T> {
         }
     }
 
+    /// Sets the value of the element at the specified row and column within the slice.
+    ///
+    /// # Arguments
+    ///
+    /// * `row` - The row index within the slice.
+    /// * `col` - The column index within the slice.
+    /// * `value` - The value to set.
     pub fn set(&mut self, row: usize, col: usize, value: T) {
         self.original_matrix[(row + self.row_range.start, col + self.col_range.start)] = value;
     }
