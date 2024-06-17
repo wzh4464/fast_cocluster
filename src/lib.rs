@@ -4,18 +4,18 @@
  * Created Date: Monday, January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Sunday, 28th January 2024 4:49:43 pm
+ * Last Modified: Tuesday, 18th June 2024 1:06:05 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
  */
-mod cocluster;
+pub mod cocluster;
 pub mod matrix;
 use cocluster::Coclusterer;
 
-mod union_dc;
+pub mod union_dc;
 use std::collections::VecDeque;
 use std::thread;
 use std::time::Duration;
@@ -31,7 +31,7 @@ use ndarray_rand::RandomExt;
 use union_dc::UnionDC;
 
 pub mod submatrix;
-mod config;
+pub mod config;
 
 pub fn run() {
     let configuration = new_config();
