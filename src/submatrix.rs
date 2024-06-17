@@ -1,22 +1,22 @@
-use std::ops::{Div, Index};
-
-use na::{ComplexField, Dyn};
-use nalgebra as na;
-use nalgebra::linalg::SVD as nalgebra_SVD;
-use nalgebra::DMatrix;
-use ndarray::iter::Iter;
 /**
- * File: /src/Submatrix.rs
+ * File: /src/submatrix.rs
  * Created Date: Monday, January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Monday, 29th January 2024 1:10:30 pm
+ * Last Modified: Tuesday, 18th June 2024 1:12:36 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
  */
+
+use std::ops::{Div, Index};
+use na::{ComplexField, Dyn};
+use nalgebra as na;
+use nalgebra::linalg::SVD as nalgebra_SVD;
+use nalgebra::DMatrix;
+use ndarray::iter::Iter;
 
 /// Extend the usage of slice for ndarray
 /// struct Submatrix and impl
