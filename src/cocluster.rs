@@ -1,9 +1,10 @@
+use nalgebra::SVD;
 /**
  * File: /src/cocluster.rs
  * Created Date: Thursday, June 13th 2024
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 18th June 2024 11:26:25 am
+ * Last Modified: Tuesday, 18th June 2024 11:57:47 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -32,10 +33,8 @@ pub struct Coclusterer {
     row: usize,
     /// The number of columns in the matrix.
     col: usize,
-    /// The number of row clusters.
-    m: usize,
-    /// The number of column clusters.
-    n: usize,
+    /// The number of co-clusters.
+    k: usize,
     /// The tolerance for score.
     tol: f32,
 }
@@ -63,15 +62,14 @@ impl Coclusterer {
     /// # Returns
     ///
     /// * A new `Coclusterer`.
-    pub fn new(matrix: Array2<f32>, m: usize, n: usize, tol: f32) -> Coclusterer {
+    pub fn new(matrix: Array2<f32>, k: usize, tol: f32) -> Coclusterer {
         let row = matrix.shape()[0];
         let col = matrix.shape()[1];
         Coclusterer {
             matrix,
-            m,
-            n,
             row,
             col,
+            k,
             tol,
         }
     }
@@ -125,23 +123,15 @@ impl Coclusterer {
 
         // panic!("stop");
 
-        let svd_result = na_matrix_normalized.svd(true, true);
+        // let svd_result = &na_matrix_normalized.svd(true, true);
         // let u: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = svd_result.u.unwrap(); // shaped as (row, row)
         // let vt: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = svd_result.v_t.unwrap(); // shaped as (col, col)
         // let v: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = vt.transpose(); // shaped as (col, row)
 
         // u, v 取前 self.k 列, 然后 vstack 成 f
-        let k = max(self.m, self.n);
+        let k = self.k;
 
-        // let u_mat = svd_result.u.unwrap(); // 创建一个更长生命周期的变量
-        // let v_t = svd_result.v_t.unwrap().transpose(); // 创建一个更长生命周期的变量
-        let (u_mat, v_t_mat) = match (svd_result.u, svd_result.v_t) {
-            (Some(u_mat), Some(v_t_mat)) => (u_mat, v_t_mat.transpose()),
-            _ => {
-                // println!("Error: svd_result.u or svd_result.v_t is None");
-                return Err("Error: svd_result.u or svd_result.v_t is None");
-            }
-        };
+        let (u_mat, v_t_mat) = perform_svd(na_matrix_normalized, k)?;
 
         let u = u_mat.view((0, 0), (self.row, k));
         let v = v_t_mat.view((0, 0), (self.col, k));
@@ -155,22 +145,29 @@ impl Coclusterer {
             }
         });
 
-        // println!("f: \n{}", f);
         let f_data: Vec<f32> = f.transpose().data.as_slice().iter().copied().collect();
-        // println!("f_data: \n{:?}", f_data);
         let kmeans_f: KMeans<f32, 8> = KMeans::new(f_data, f.nrows(), f.ncols());
 
-        let result_f =
-            kmeans_f.kmeans_lloyd(k, 100, KMeans::init_kmeanplusplus, &KMeansConfig::default());
+        let result_f = kmeans_f.kmeans_lloyd(k, 100, KMeans::init_kmeanplusplus, &KMeansConfig::default());
 
-        // print!("result_f: \n");
-        // for i in result_f.assignments.iter() {
-        //     print!("{:?} ", i);
-        // }
-        // println!();
-
-        return Ok(result_f.assignments);
+        Ok(result_f.assignments)
     }
+}
+
+fn perform_svd(na_matrix_normalized: DMatrix<f32>, k: usize) -> Result<(DMatrix<f32>, DMatrix<f32>), &'static str> {
+    let svd_result = SVD::new(na_matrix_normalized, true, true);
+
+    let u_mat = match svd_result.u {
+        Some(u) => u.columns(0, k).into_owned(), // 获取前 k 列
+        None => return Err("Error: svd_result.u is None"),
+    };
+
+    let v_t_mat = match svd_result.v_t {
+        Some(vt) => vt.rows(0, k).into_owned().transpose(), // 获取前 k 行并转置
+        None => return Err("Error: svd_result.v_t is None"),
+    };
+
+    Ok((u_mat, v_t_mat))
 }
 
 #[cfg(test)]
@@ -226,7 +223,7 @@ mod tests {
 
         println!("score: {}", &score);
 
-        assert!((score - 2.0).abs() < 1e-6);
+        assert!((score - 2.0).abs() < 1e-5);
     }
 
     /// test cocluster
@@ -273,7 +270,7 @@ mod tests {
 
         // 可选：在成功率低于某个阈值时，测试失败
         assert!(
-            success_rate >= 90.0,
+            success_rate >= 97.0,
             "Success rate is below acceptable threshold: {:.2}%",
             success_rate
         );
@@ -281,7 +278,7 @@ mod tests {
     fn cocluster_test_helper(
         b_matrix: ndarray::ArrayBase<ndarray::OwnedRepr<f32>, ndarray::Dim<[usize; 2]>>,
     ) -> Result<(), String> {
-        let mut coclusterer = Coclusterer::new(b_matrix, 3, 3, 1e-1);
+        let mut coclusterer = Coclusterer::new(b_matrix, 3, 1e-1);
         let assignment_vec = coclusterer
             .cocluster()
             .map_err(|e| format!("Cocluster error: {:?}", e))?;

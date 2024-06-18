@@ -5,7 +5,7 @@
  * Created Date: Monday, January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 18th June 2024 11:09:15 am
+ * Last Modified: Tuesday, 18th June 2024 11:58:52 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -80,7 +80,7 @@ pub fn test_cocluster() {
 
     // println!("{:?}", test_matrix);
 
-    let mut coclusterer = Coclusterer::new(test_matrix, 3, 3, 1e-1);
+    let mut coclusterer = Coclusterer::new(test_matrix, 3, 1e-1);
     #[cfg(debug_assertions)]
     let start_time = Instant::now();
 
