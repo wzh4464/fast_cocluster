@@ -3,12 +3,13 @@
  * Created Date: Thursday, June 13th 2024
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 18th June 2024 11:22:31 am
+ * Last Modified: Tuesday, 18th June 2024 11:26:25 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
+ * 18-06-2024		Zihan	Refactor Coclusterer and Add Utility Functions
 **/
 // src/cocluster.rs
 use nalgebra::{DMatrix, DVector, Dyn, Matrix2};
