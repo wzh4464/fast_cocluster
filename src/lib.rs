@@ -5,7 +5,7 @@
  * Created Date: Monday, January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 18th June 2024 1:11:01 am
+ * Last Modified: Tuesday, 18th June 2024 11:09:15 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -15,6 +15,7 @@
 
 pub mod cocluster;
 pub mod matrix;
+mod util;
 use cocluster::Coclusterer;
 
 pub mod union_dc;
