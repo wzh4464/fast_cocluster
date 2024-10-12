@@ -1,4 +1,3 @@
-use nalgebra::SVD;
 /**
  * File: /src/cocluster.rs
  * Created Date: Thursday, June 13th 2024
@@ -13,6 +12,7 @@ use nalgebra::SVD;
  * 18-06-2024		Zihan	Refactor Coclusterer and Add Utility Functions
 **/
 // src/cocluster.rs
+use nalgebra::SVD;
 use nalgebra::{DMatrix, DVector, Dyn, Matrix2};
 use ndarray::{stack, Array2};
 extern crate nalgebra as na;
@@ -148,13 +148,17 @@ impl Coclusterer {
         let f_data: Vec<f32> = f.transpose().data.as_slice().iter().copied().collect();
         let kmeans_f: KMeans<f32, 8> = KMeans::new(f_data, f.nrows(), f.ncols());
 
-        let result_f = kmeans_f.kmeans_lloyd(k, 100, KMeans::init_kmeanplusplus, &KMeansConfig::default());
+        let result_f =
+            kmeans_f.kmeans_lloyd(k, 100, KMeans::init_kmeanplusplus, &KMeansConfig::default());
 
         Ok(result_f.assignments)
     }
 }
 
-fn perform_svd(na_matrix_normalized: DMatrix<f32>, k: usize) -> Result<(DMatrix<f32>, DMatrix<f32>), &'static str> {
+fn perform_svd(
+    na_matrix_normalized: DMatrix<f32>,
+    k: usize,
+) -> Result<(DMatrix<f32>, DMatrix<f32>), &'static str> {
     let svd_result = SVD::new(na_matrix_normalized, true, true);
 
     let u_mat = match svd_result.u {
@@ -251,7 +255,7 @@ mod tests {
 
         let mut success_count = 0;
         let mut failure_count = 0;
-        
+
         // 循环调用 cocluster_test_helper 100 次
         for _ in 0..10000 {
             match cocluster_test_helper(b_matrix.clone()) {
