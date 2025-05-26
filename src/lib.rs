@@ -5,7 +5,7 @@
  * Created Date: Monday, January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 18th June 2024 11:58:52 am
+ * Last Modified: Monday, 26th May 2025 11:31:24 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -15,6 +15,9 @@
 
 pub mod cocluster;
 pub mod matrix;
+pub mod pipeline;
+pub mod scoring;
+pub mod spectral_cocluster;
 mod util;
 use cocluster::Coclusterer;
 
@@ -74,9 +77,9 @@ pub fn example_for_uniondc() {
 }
 
 pub fn test_cocluster() {
-    // init a constant matrix : Array2<f32>
+    // init a constant matrix : Array2<f64>
     // rand 200 * 200
-    let test_matrix: Array2<f32> = Array2::random((200, 200), Uniform::new(0.0, 1.0));
+    let test_matrix: Array2<f64> = Array2::random((200, 200), Uniform::new(0.0, 1.0));
 
     // println!("{:?}", test_matrix);
 
@@ -122,7 +125,7 @@ pub fn fake_logger() -> () {
         method,
         timestamp()
     );
-    let cocluster_time = Duration::from_secs_f32(11.7);
+    let cocluster_time = Duration::from_secs_f64(11.7);
     if delay {
         thread::sleep(cocluster_time); // Simulate the delay
     }
@@ -130,12 +133,12 @@ pub fn fake_logger() -> () {
         "[method: {}] [{}] Paralleled Cocluster done in {:.1}s",
         method,
         timestamp(),
-        cocluster_time.as_secs_f32()
+        cocluster_time.as_secs_f64()
     );
 
     // Simulate ensembling
     info!("[method: {}] [{}] Start Ensembling", method, timestamp());
-    let ensemble_time = Duration::from_secs_f32(22.1);
+    let ensemble_time = Duration::from_secs_f64(22.1);
     if delay {
         thread::sleep(ensemble_time); // Simulate the delay
     }
@@ -143,7 +146,7 @@ pub fn fake_logger() -> () {
         "[method: {}] [{}] Ensembled in {:.1}s",
         method,
         timestamp(),
-        ensemble_time.as_secs_f32()
+        ensemble_time.as_secs_f64()
     );
 
     // Simulate a short wait and then log the NMI and ARI
@@ -161,3 +164,6 @@ pub fn fake_logger() -> () {
         ari
     );
 }
+
+pub type SimpleMatrix = ndarray::Array2<f64>;
+pub type SimpleSubmatrix = (Vec<usize>, Vec<usize>);

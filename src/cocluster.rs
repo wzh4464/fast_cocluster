@@ -3,7 +3,7 @@
  * Created Date: Thursday, June 13th 2024
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 18th June 2024 11:57:47 am
+ * Last Modified: Monday, 26th May 2025 11:59:26 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -28,7 +28,7 @@ use crate::submatrix::Submatrix;
 /// A co-clustering structure that performs k-means clustering on the rows and columns of a matrix.
 pub struct Coclusterer {
     /// The matrix to be co-clustered.
-    matrix: Array2<f32>,
+    matrix: Array2<f64>,
     /// The number of rows in the matrix.
     row: usize,
     /// The number of columns in the matrix.
@@ -36,7 +36,7 @@ pub struct Coclusterer {
     /// The number of co-clusters.
     k: usize,
     /// The tolerance for score.
-    tol: f32,
+    tol: f64,
 }
 
 /// Clones a 2D ndarray array view into a nalgebra DMatrix.
@@ -62,7 +62,7 @@ impl Coclusterer {
     /// # Returns
     ///
     /// * A new `Coclusterer`.
-    pub fn new(matrix: Array2<f32>, k: usize, tol: f32) -> Coclusterer {
+    pub fn new(matrix: Array2<f64>, k: usize, tol: f64) -> Coclusterer {
         let row = matrix.shape()[0];
         let col = matrix.shape()[1];
         Coclusterer {
@@ -124,9 +124,9 @@ impl Coclusterer {
         // panic!("stop");
 
         // let svd_result = &na_matrix_normalized.svd(true, true);
-        // let u: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = svd_result.u.unwrap(); // shaped as (row, row)
-        // let vt: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = svd_result.v_t.unwrap(); // shaped as (col, col)
-        // let v: na::Matrix<f32, Dyn, Dyn, na::VecStorage<f32, Dyn, Dyn>> = vt.transpose(); // shaped as (col, row)
+        // let u: na::Matrix<f64, Dyn, Dyn, na::VecStorage<f64, Dyn, Dyn>> = svd_result.u.unwrap(); // shaped as (row, row)
+        // let vt: na::Matrix<f64, Dyn, Dyn, na::VecStorage<f64, Dyn, Dyn>> = svd_result.v_t.unwrap(); // shaped as (col, col)
+        // let v: na::Matrix<f64, Dyn, Dyn, na::VecStorage<f64, Dyn, Dyn>> = vt.transpose(); // shaped as (col, row)
 
         // u, v 取前 self.k 列, 然后 vstack 成 f
         let k = self.k;
@@ -145,8 +145,8 @@ impl Coclusterer {
             }
         });
 
-        let f_data: Vec<f32> = f.transpose().data.as_slice().iter().copied().collect();
-        let kmeans_f: KMeans<f32, 8> = KMeans::new(f_data, f.nrows(), f.ncols());
+        let f_data: Vec<f64> = f.transpose().data.as_slice().iter().copied().collect();
+        let kmeans_f: KMeans<f64, 8> = KMeans::new(f_data, f.nrows(), f.ncols());
 
         let result_f =
             kmeans_f.kmeans_lloyd(k, 100, KMeans::init_kmeanplusplus, &KMeansConfig::default());
@@ -156,9 +156,9 @@ impl Coclusterer {
 }
 
 fn perform_svd(
-    na_matrix_normalized: DMatrix<f32>,
+    na_matrix_normalized: DMatrix<f64>,
     k: usize,
-) -> Result<(DMatrix<f32>, DMatrix<f32>), &'static str> {
+) -> Result<(DMatrix<f64>, DMatrix<f64>), &'static str> {
     let svd_result = SVD::new(na_matrix_normalized, true, true);
 
     let u_mat = match svd_result.u {
@@ -190,11 +190,11 @@ mod tests {
     fn test_update_score() {
         // submatrix is smaller than 3 *. 3
         let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let mut submatrix = Submatrix::new(&data, vec![0, 1], vec![0, 1]);
+        let mut submatrix_opt = crate::submatrix::Submatrix::new(&data, vec![0, 1], vec![0, 1]);
 
-        if let Some(mut submatrix) = submatrix {
-            submatrix.update_score();
-            assert_eq!(submatrix.score, None);
+        if let Some(mut sm) = submatrix_opt {
+            sm.update_score();
+            assert_eq!(sm.score, None::<f64>);
         }
 
         // submatrix is larger than 3*3
@@ -216,14 +216,14 @@ mod tests {
         let a_matrix = u_matrix * s_matrix * v_matrix.transpose();
         let a_vec = a_matrix.as_slice().to_vec();
 
-        let matrix = Array2::<f32>::from_shape_vec((3, 3), a_vec).unwrap();
-        let mut submatrix = Submatrix::new(&matrix, vec![0, 1, 2], vec![0, 1, 2]);
+        let matrix_data = Array2::<f64>::from_shape_vec((3, 3), a_vec).unwrap();
+        let mut submatrix_opt_large = crate::submatrix::Submatrix::new(&matrix_data, vec![0, 1, 2], vec![0, 1, 2]);
 
-        if let Some(ref mut submatrix) = submatrix {
-            submatrix.update_score();
+        if let Some(ref mut sm_large) = submatrix_opt_large {
+            sm_large.update_score();
         }
 
-        let score = submatrix.unwrap().score.unwrap();
+        let score = submatrix_opt_large.expect("Submatrix should be Some").score.expect("Score should be Some after update");
 
         println!("score: {}", &score);
 
@@ -280,7 +280,7 @@ mod tests {
         );
     }
     fn cocluster_test_helper(
-        b_matrix: ndarray::ArrayBase<ndarray::OwnedRepr<f32>, ndarray::Dim<[usize; 2]>>,
+        b_matrix: ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>>,
     ) -> Result<(), String> {
         let mut coclusterer = Coclusterer::new(b_matrix, 3, 1e-1);
         let assignment_vec = coclusterer
@@ -300,11 +300,11 @@ mod tests {
     /// # Returns
     ///
     /// * A random 3x3 orthogonal matrix.
-    fn random_orthogonal_matrix() -> Matrix3<f32> {
+    fn random_orthogonal_matrix() -> Matrix3<f64> {
         let mut rng = rand::thread_rng();
 
         // 随机生成一个 3x3 矩阵
-        let mat: Matrix3<f32> = Matrix3::from_fn(|_, _| rng.gen::<f32>());
+        let mat: Matrix3<f64> = Matrix3::from_fn(|_, _| rng.gen::<f64>());
 
         // 进行 QR 分解
         let qr = QR::new(mat);

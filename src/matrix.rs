@@ -3,7 +3,7 @@
  * Created Date: Thursday, November 23rd 2023
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 18th June 2024 1:10:16 am
+ * Last Modified: Monday, 26th May 2025 11:31:28 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -19,9 +19,9 @@ use ndarray_rand::rand_distr::num_traits::Zero;
 
 /// A generic matrix structure using `ndarray::Array2`.
 pub struct Matrix<T> {
-    data: Array2<T>,
-    rows: usize,
-    cols: usize,
+    pub data: Array2<T>,
+    pub rows: usize,
+    pub cols: usize,
 }
 
 impl<T> Matrix<T> {

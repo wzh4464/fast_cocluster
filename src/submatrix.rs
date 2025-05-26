@@ -3,7 +3,7 @@
  * Created Date: Monday, January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Tuesday, 18th June 2024 1:12:36 am
+ * Last Modified: Monday, 26th May 2025 11:38:18 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -41,6 +41,7 @@ use crate::submatrix;
 /// ```
 /// b = [[2, 3],
 ///     [8, 9]]
+#[derive(Clone)]
 pub struct Submatrix<'a, T>
 where
     T: Scalar,
@@ -158,7 +159,7 @@ where
     }
 }
 
-impl std::fmt::Debug for Submatrix<'_, f32> {
+impl std::fmt::Debug for Submatrix<'_, f64> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let mut s = String::new();
         for i in 0..self.row_indices.len() {
@@ -266,7 +267,7 @@ mod tests {
     ///
     /// C = \[\[9\]\]
     fn test_new_submatrix() {
-        let a: Array2<f32> =
+        let a: Array2<f64> =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
                 .unwrap();
 
