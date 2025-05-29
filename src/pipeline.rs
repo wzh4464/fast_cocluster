@@ -18,6 +18,12 @@ use ndarray::Array2;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::marker::PhantomData;
+use crate::dimergeco::DiMergeCo;
+use crate::partitioner::ProbabilisticPartitioner;
+use crate::merger::HierarchicalMerger;
+use crate::config::DiMergeCoConfig;
+use crate::partitioner::CoCluster as DiMergeCoOutputCoCluster;
+use crate::merger::SubmatrixWithScore;
 
 /// Pipeline配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -577,5 +583,57 @@ impl Clusterer for BasicCoclusterer {
 
     fn name(&self) -> &str {
         "BasicCoclusterer"
+    }
+}
+
+// Define DiMergeCoPipeline structure
+pub struct DiMergeCoPipeline {
+    partitioner: ProbabilisticPartitioner,
+    merger: HierarchicalMerger,
+    dimergeco_config: DiMergeCoConfig,
+}
+
+impl DiMergeCoPipeline {
+    pub fn new(
+        partitioner: ProbabilisticPartitioner,
+        merger: HierarchicalMerger,
+        dimergeco_config: DiMergeCoConfig,
+    ) -> Self {
+        Self {
+            partitioner,
+            merger,
+            dimergeco_config,
+        }
+    }
+}
+
+// Implement Pipeline trait for DiMergeCoPipeline
+// SVDClusterer is defined in this file, so it's in scope.
+impl<'a> Pipeline<'a, SVDClusterer> for DiMergeCoPipeline {
+    fn run(&self, matrix: &'a Matrix<f64>) -> Result<Vec<Submatrix<'a, f64>>, Box<dyn Error>> {
+        let dimergeco = DiMergeCo::new(
+            self.partitioner.t_m,
+            self.partitioner.t_n,
+            self.partitioner.t_max,
+            self.partitioner.p_thresh,
+            self.merger.overlap_threshold,
+            self.merger.score_weights.0, // Accessing tuple element for coherence_weight
+            self.merger.score_weights.1, // Accessing tuple element for density_weight
+            self.merger.score_weights.2, // Accessing tuple element for size_weight
+            self.dimergeco_config.local_k,
+            self.dimergeco_config.local_tol
+        );
+
+        let coclusters_internal_format = dimergeco.run(&matrix.data)?;
+
+        let mut submatrices = Vec::new();
+        for cc_internal in coclusters_internal_format {
+            if let Some(submatrix) = Submatrix::from_indices(&matrix.data, &cc_internal.row_indices, &cc_internal.col_indices) {
+                submatrices.push(submatrix);
+            } else {
+                warn!("Failed to create Submatrix from DiMergeCoOutputCoCluster with rows: {:?}, cols: {:?}", cc_internal.row_indices, cc_internal.col_indices);
+            }
+        }
+        Ok(submatrices)
     }
 }

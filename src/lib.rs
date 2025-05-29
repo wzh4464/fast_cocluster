@@ -5,7 +5,7 @@
  * Created Date: Monday, January 22nd 2024
  * Author: Zihan
  * -----
- * Last Modified: Monday, 26th May 2025 11:31:24 am
+ * Last Modified: Thursday, 29th May 2025 10:59:19 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -38,6 +38,14 @@ use union_dc::UnionDC;
 
 pub mod submatrix;
 pub mod config;
+pub mod partitioner;
+pub mod merger;
+pub mod dimergeco;
+pub mod probability;
+
+use std::error::Error;
+use dimergeco::DiMergeCo;
+use partitioner::CoCluster; // Assuming CoCluster is defined in partitioner.rs as per new code
 
 pub fn run() {
     let configuration = new_config();
@@ -166,4 +174,23 @@ pub fn fake_logger() -> () {
 }
 
 pub type SimpleMatrix = ndarray::Array2<f64>;
-pub type SimpleSubmatrix = (Vec<usize>, Vec<usize>);
+// SimpleSubmatrix might need to be re-evaluated based on new CoCluster definitions
+// pub type SimpleSubmatrix = (Vec<usize>, Vec<usize>); 
+
+// Example usage function for DiMergeCo
+pub fn run_dimergeco(matrix: &Array2<f64>) -> Result<Vec<CoCluster>, Box<dyn Error>> {
+    let dimergeco_instance = DiMergeCo::new(
+        10,    // t_m: minimum row size
+        10,    // t_n: minimum column size
+        20,    // t_max: maximum iterations
+        0.95,  // p_thresh: probability threshold
+        0.4,   // overlap_threshold
+        0.4,   // coherence_weight for merger
+        0.4,   // density_weight for merger
+        0.2,   // size_weight for merger
+        3,     // local_k: number of local clusters
+        1e-4,  // local_tol: tolerance for local clustering
+    );
+    
+    dimergeco_instance.run(matrix)
+}

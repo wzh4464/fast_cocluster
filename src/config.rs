@@ -5,7 +5,7 @@ use ndarray_npy::ReadNpyExt;
  * Created Date: Friday, January 26th 2024
  * Author: Zihan
  * -----
- * Last Modified: Monday, 26th May 2025 11:31:24 am
+ * Last Modified: Thursday, 29th May 2025 10:59:30 am
  * Modified By: the developer formerly known as Zihan at <wzh4464@gmail.com>
  * -----
  * HISTORY:
@@ -26,6 +26,18 @@ pub struct Config {
     n: usize,
     // torlerance
     tol: f64,
+}
+
+pub struct DiMergeCoConfig {
+    pub t_m: usize,
+    pub t_n: usize,
+    pub t_max: usize,
+    pub p_thresh: f64,
+    pub overlap_threshold: f64,
+    pub score_weights: (f64, f64, f64), // (coherence, density, size) - Added from HierarchicalMerger
+    pub parallel: bool,
+    pub local_k: usize,
+    pub local_tol: f64,
 }
 
 impl Config {
