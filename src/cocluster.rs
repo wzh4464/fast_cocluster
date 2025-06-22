@@ -79,7 +79,7 @@ impl Coclusterer {
     /// # Returns
     ///
     /// * A vector that gives the groupiong of the rows and columns.
-    pub(crate) fn cocluster(&mut self) -> Result<Vec<usize>, &'static str> {
+    pub fn cocluster(&mut self) -> Result<Vec<usize>, &'static str> {
         // print self.matrix.view()
         // println!("self.matrix: \n{}", self.matrix.view());
 

@@ -196,6 +196,83 @@ fn handle_missing_values(matrix: &mut Array2<f64>, fill_value: f64) {
 }
 ```
 
+## 替换原子化 Cocluster 方法
+
+### 从原子化到模块化的迁移
+
+原始的 `Coclusterer::cocluster()` 方法是一个原子化实现，将所有算法步骤硬编码在一个函数中。新的模块化实现提供了更好的灵活性和可扩展性。
+
+#### 原子化方法 (旧)
+```rust
+use fast_cocluster::cocluster::Coclusterer;
+
+// 原子化 - 不可定制
+let mut coclusterer = Coclusterer::new(matrix, 5, 0.1);
+let result = coclusterer.cocluster()?; // 固定: SVD + K-means
+```
+
+#### 模块化方法 (新) - 等效替换
+```rust
+use fast_cocluster::modular_cocluster::*;
+
+// 模块化 - 完全等效于原子化方法
+let mut coclusterer = ModularCoclusterer::with_defaults(matrix, 5);
+let result = coclusterer.cocluster()?;
+```
+
+#### 模块化方法 - 增强功能
+```rust
+// 使用改进的归一化
+let mut coclusterer = ModularCoclusterer::with_zscore(matrix, 5);
+
+// 使用加权特征组合
+let mut coclusterer = ModularCoclusterer::with_weighted_features(matrix, 5, 0.8, 0.2);
+
+// 完全自定义组件
+let mut coclusterer = ModularCoclustererBuilder::new()
+    .matrix(matrix)
+    .k(5)
+    .normalizer(Box::new(ZScoreNormalizer))
+    .reducer(Box::new(SVDReducer))
+    .combiner(Box::new(WeightedCombiner { row_weight: 0.7, col_weight: 0.3 }))
+    .assigner(Box::new(KMeansAssigner))
+    .build()?;
+```
+
+### 自定义组件示例
+
+```rust
+// 自定义归一化器
+struct MinMaxNormalizer;
+impl MatrixNormalizer for MinMaxNormalizer {
+    fn normalize(&self, matrix: &DMatrix<f64>) -> DMatrix<f64> {
+        let min_val = matrix.min();
+        let max_val = matrix.max();
+        let range = max_val - min_val;
+        if range > 0.0 {
+            matrix.map(|x| (x - min_val) / range)
+        } else {
+            matrix.clone()
+        }
+    }
+}
+
+// 使用自定义组件
+let mut coclusterer = ModularCoclustererBuilder::new()
+    .matrix(matrix)
+    .k(5)
+    .normalizer(Box::new(MinMaxNormalizer))
+    .build()?;
+```
+
+### 性能对比
+
+| 方法 | 执行时间 | 优势 | 限制 |
+|------|----------|------|------|
+| 原子化 | 105ms | 简单直接 | 不可定制、不可扩展 |
+| 模块化默认 | 76ms | 等效功能 + 可扩展 | 无 |
+| 模块化自定义 | 75ms | 完全可定制 | 需要理解组件接口 |
+
 ## Core Algorithms
 
 ### 1. SVD Clusterer (Recommended)

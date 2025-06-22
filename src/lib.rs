@@ -38,6 +38,7 @@ use union_dc::UnionDC;
 
 pub mod submatrix;
 pub mod config;
+pub mod modular_cocluster;
 
 pub fn run() {
     let configuration = new_config();
