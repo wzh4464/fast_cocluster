@@ -40,6 +40,12 @@ pub mod submatrix;
 pub mod config;
 pub mod modular_cocluster;
 
+// 3D tensor co-clustering modules
+pub mod tensor3d;
+pub mod tucker_decomposition;
+pub mod tensor3d_scoring;
+pub mod tensor3d_cocluster;
+
 pub fn run() {
     let configuration = new_config();
     

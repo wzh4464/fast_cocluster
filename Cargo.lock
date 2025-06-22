@@ -325,6 +325,7 @@ dependencies = [
  "ndarray-npz",
  "ndarray-parallel",
  "ndarray-rand",
+ "ndarray-stats",
  "rand 0.9.1",
  "rayon",
  "serde",

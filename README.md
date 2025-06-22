@@ -196,6 +196,72 @@ fn handle_missing_values(matrix: &mut Array2<f64>, fill_value: f64) {
 }
 ```
 
+## 🆕 3D 张量 Co-clustering (新功能)
+
+### Tucker 分解驱动的3D张量分析
+
+本项目现已支持3D张量的co-clustering分析，使用Tucker分解算法实现高效的多维数据聚类。
+
+#### 快速开始 - 3D张量
+
+```rust
+use fast_cocluster::tensor3d::*;
+use fast_cocluster::tensor3d_scoring::*;
+use fast_cocluster::tucker_decomposition::*;
+
+// 创建3D张量 (用户 × 物品 × 上下文)
+let tensor = Tensor3D::random([100, 50, 20]);
+
+// Tucker分解
+let tucker_rank = TuckerRank::new(5, 4, 3); // 指定每个模式的rank
+let decomposer = TuckerDecomposer::with_ranks(5, 4, 3);
+let decomposition = decomposer.decompose(&tensor)?;
+
+// 张量评分
+let scorer = TuckerScorer::new(tucker_rank);
+let subspace = TensorSubspace::new(&tensor, vec![0,1,2], vec![0,1,2], vec![0,1,2]).unwrap();
+let score = scorer.score(&tensor, &subspace);
+
+println!("Tucker分解重构误差: {:.4}", decomposition.reconstruction_error);
+println!("子空间质量分数: {:.4}", score);
+```
+
+#### 支持的应用场景
+
+- **基因表达分析**: 基因 × 条件 × 时间点
+- **推荐系统**: 用户 × 物品 × 上下文  
+- **时空数据**: 传感器 × 地点 × 时间
+- **社交网络**: 用户 × 内容 × 社群
+- **金融分析**: 资产 × 因子 × 时期
+
+#### 核心特性
+
+- **Tucker分解**: 高效的3D张量分解算法
+- **多种评分器**: Tucker、密度、方差、组合评分
+- **可配置Rank**: 灵活的Tucker rank配置
+- **高性能**: 并行计算和内存优化
+- **完整Pipeline**: 从数据加载到结果输出
+
+#### 与2D co-clustering的对比
+
+| 特性 | 2D矩阵 | 3D张量 |
+|------|--------|--------|
+| 算法 | SVD + K-means | Tucker分解 + 聚类 |
+| 数据结构 | Matrix<T> | Tensor3D<T> |
+| 分解方式 | 奇异值分解 | Tucker分解 |
+| 应用场景 | 二维关联分析 | 多维关联分析 |
+| 计算复杂度 | O(mn min(m,n)) | O(I₁I₂I₃R₁R₂R₃) |
+
+#### 示例：完整3D分析流程
+
+```bash
+# 运行3D张量co-clustering演示
+cargo run --example tensor3d_complete_demo
+
+# 运行基础3D张量示例
+cargo run --example tensor3d_cocluster_example
+```
+
 ## 替换原子化 Cocluster 方法
 
 ### 从原子化到模块化的迁移
