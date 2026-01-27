@@ -352,6 +352,249 @@ pub enum DiMergeCoError {
     InvalidConfiguration(String),
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_partition_creation() {
+        let partition = Partition {
+            row_indices: vec![0, 1, 2],
+            col_indices: vec![3, 4, 5],
+            id: 0,
+        };
+
+        assert_eq!(partition.row_indices.len(), 3);
+        assert_eq!(partition.col_indices.len(), 3);
+        assert_eq!(partition.id, 0);
+    }
+
+    #[test]
+    fn test_partition_size() {
+        let partition = Partition {
+            row_indices: vec![0, 2, 4, 6],
+            col_indices: vec![1, 3],
+            id: 1,
+        };
+
+        let (rows, cols) = partition.size();
+        assert_eq!(rows, 4);
+        assert_eq!(cols, 2);
+    }
+
+    #[test]
+    fn test_partition_params_creation() {
+        let params = PartitionParams {
+            k: 5,
+            n: 100,
+            tau: 0.2236,  // sqrt(5/100)
+            delta: 0.05,
+            num_partitions: 8,
+            min_partition_size: (10, 10),
+        };
+
+        assert_eq!(params.k, 5);
+        assert_eq!(params.n, 100);
+        assert!((params.tau - 0.2236).abs() < 1e-4);
+        assert_eq!(params.num_partitions, 8);
+    }
+
+    #[test]
+    fn test_partition_result_creation() {
+        let partition1 = Partition {
+            row_indices: vec![0, 1],
+            col_indices: vec![0, 1],
+            id: 0,
+        };
+        let partition2 = Partition {
+            row_indices: vec![2, 3],
+            col_indices: vec![2, 3],
+            id: 1,
+        };
+
+        let result = PartitionResult {
+            partitions: vec![partition1, partition2],
+            threshold: 0.3,
+            preservation_prob: 0.95,
+            singular_values: vec![5.0, 3.0, 1.0],
+        };
+
+        assert_eq!(result.partitions.len(), 2);
+        assert_eq!(result.threshold, 0.3);
+        assert_eq!(result.preservation_prob, 0.95);
+        assert_eq!(result.singular_values.len(), 3);
+    }
+
+    #[test]
+    fn test_merge_strategy_union() {
+        let strategy = MergeStrategy::Union;
+        match strategy {
+            MergeStrategy::Union => assert!(true),
+            _ => panic!("Expected Union strategy"),
+        }
+    }
+
+    #[test]
+    fn test_merge_strategy_intersection() {
+        let strategy = MergeStrategy::Intersection {
+            overlap_threshold: 0.5,
+        };
+        match strategy {
+            MergeStrategy::Intersection { overlap_threshold } => {
+                assert_eq!(overlap_threshold, 0.5);
+            }
+            _ => panic!("Expected Intersection strategy"),
+        }
+    }
+
+    #[test]
+    fn test_merge_strategy_weighted() {
+        let strategy = MergeStrategy::Weighted {
+            left_weight: 0.6,
+            right_weight: 0.4,
+        };
+        match strategy {
+            MergeStrategy::Weighted {
+                left_weight,
+                right_weight,
+            } => {
+                assert_eq!(left_weight, 0.6);
+                assert_eq!(right_weight, 0.4);
+            }
+            _ => panic!("Expected Weighted strategy"),
+        }
+    }
+
+    #[test]
+    fn test_hierarchical_merge_config_default() {
+        let config = HierarchicalMergeConfig::default();
+        
+        match config.merge_strategy {
+            MergeStrategy::Adaptive => assert!(true),
+            _ => panic!("Expected Adaptive as default strategy"),
+        }
+        assert_eq!(config.merge_threshold, 0.5);
+        assert_eq!(config.rescore_merged, true);
+        assert_eq!(config.parallel_level, 2);
+    }
+
+    #[test]
+    fn test_node_metadata_creation() {
+        let metadata = NodeMetadata {
+            depth: 2,
+            num_clusters: 10,
+            partition_id: Some(5),
+            merge_score: Some(0.85),
+        };
+
+        assert_eq!(metadata.depth, 2);
+        assert_eq!(metadata.num_clusters, 10);
+        assert_eq!(metadata.partition_id.unwrap(), 5);
+        assert_eq!(metadata.merge_score.unwrap(), 0.85);
+    }
+
+    #[test]
+    fn test_parallel_config_default() {
+        let config = ParallelConfig::default();
+        
+        assert_eq!(config.enabled, true);
+        assert_eq!(config.min_items_for_parallel, 100);
+        assert!(config.num_threads.is_some());
+        assert_eq!(config.kmeans_parallel, true);
+        assert_eq!(config.scoring_parallel, true);
+    }
+
+    #[test]
+    fn test_parallel_config_custom() {
+        let config = ParallelConfig {
+            enabled: true,
+            min_items_for_parallel: 50,
+            num_threads: Some(8),
+            chunk_size: Some(32),
+            kmeans_parallel: false,
+            scoring_parallel: true,
+            normalization_parallel: true,
+            submatrix_creation_parallel: true,
+        };
+
+        assert_eq!(config.num_threads.unwrap(), 8);
+        assert_eq!(config.min_items_for_parallel, 50);
+        assert_eq!(config.kmeans_parallel, false);
+    }
+
+    #[test]
+    fn test_dimerge_co_stats_creation() {
+        let phase_times = PhaseTimings {
+            partitioning_ms: 100,
+            local_clustering_ms: 500,
+            merging_ms: 200,
+            total_ms: 800,
+        };
+
+        let stats = DiMergeCoStats {
+            preservation_prob: 0.95,
+            tree_depth: 3,
+            num_partitions: 8,
+            total_local_clusters: 40,
+            final_clusters: 10,
+            phase_times,
+        };
+
+        assert_eq!(stats.preservation_prob, 0.95);
+        assert_eq!(stats.tree_depth, 3);
+        assert_eq!(stats.num_partitions, 8);
+        assert_eq!(stats.final_clusters, 10);
+        assert_eq!(stats.phase_times.total_ms, 800);
+    }
+
+    #[test]
+    fn test_partition_error_display() {
+        let error = PartitionError::SvdFailed("Test SVD error".to_string());
+        let error_str = format!("{}", error);
+        assert!(error_str.contains("SVD"));
+        assert!(error_str.contains("Test SVD error"));
+    }
+
+    #[test]
+    fn test_merge_error_display() {
+        let error = MergeError::MergeStrategyFailed("Size mismatch".to_string());
+        let error_str = format!("{}", error);
+        assert!(error_str.contains("merge"));
+        assert!(error_str.contains("Size mismatch"));
+    }
+
+    #[test]
+    fn test_dimerge_co_error_from_partition_error() {
+        let partition_err = PartitionError::InvalidPartitionCount(0);
+        let dimerge_err: DiMergeCoError = partition_err.into();
+        
+        match dimerge_err {
+            DiMergeCoError::Partition(_) => assert!(true),
+            _ => panic!("Expected Partition error variant"),
+        }
+    }
+
+    #[test]
+    fn test_dimerge_co_error_from_merge_error() {
+        let merge_err = MergeError::EmptyInput;
+        let dimerge_err: DiMergeCoError = merge_err.into();
+        
+        match dimerge_err {
+            DiMergeCoError::Merge(_) => assert!(true),
+            _ => panic!("Expected Merge error variant"),
+        }
+    }
+
+    #[test]
+    fn test_dimerge_co_error_display() {
+        let error = DiMergeCoError::InvalidConfiguration("Test config error".to_string());
+        let error_str = format!("{}", error);
+        assert!(error_str.contains("Invalid configuration"));
+        assert!(error_str.contains("Test config error"));
+    }
+}
+
 impl fmt::Display for DiMergeCoError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

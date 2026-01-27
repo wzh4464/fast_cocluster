@@ -151,7 +151,75 @@ pub fn cluster_partitions_parallel<'a, L: LocalClusterer>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipeline::Clusterer;
+    use crate::submatrix::Submatrix;
     use ndarray::Array2;
+
+    // Mock local clusterer for testing
+    struct MockLocalClusterer {
+        num_clusters: usize,
+    }
+
+    impl LocalClusterer for MockLocalClusterer {
+        fn cluster_local<'a>(
+            &self,
+            matrix: &'a Array2<f64>,
+        ) -> Result<Vec<Submatrix<'a, f64>>, Box<dyn std::error::Error>> {
+            let n_rows = matrix.nrows();
+            let n_cols = matrix.ncols();
+
+            if n_rows == 0 || n_cols == 0 {
+                return Ok(vec![]);
+            }
+
+            // Create simple clusters by splitting matrix
+            let mut clusters = Vec::new();
+            let rows_per_cluster = (n_rows / self.num_clusters).max(1);
+
+            for i in 0..self.num_clusters.min(n_rows / rows_per_cluster) {
+                let row_start = i * rows_per_cluster;
+                let row_end = ((i + 1) * rows_per_cluster).min(n_rows);
+                let rows: Vec<usize> = (row_start..row_end).collect();
+                let cols: Vec<usize> = (0..n_cols).collect();
+
+                if let Some(sub) = Submatrix::from_indices(matrix, &rows, &cols) {
+                    clusters.push(sub);
+                }
+            }
+
+            Ok(clusters)
+        }
+    }
+
+    // Mock Clusterer for testing adapter
+    struct MockClusterer;
+
+    impl Clusterer for MockClusterer {
+        fn cluster<'matrix_life>(
+            &self,
+            matrix: &'matrix_life Matrix<f64>,
+        ) -> Result<Vec<Submatrix<'matrix_life, f64>>, Box<dyn std::error::Error>> {
+            let n_rows = matrix.data.nrows();
+            let n_cols = matrix.data.ncols();
+
+            if n_rows < 2 || n_cols < 2 {
+                return Ok(vec![]);
+            }
+
+            // Return a simple cluster
+            let rows = vec![0, 1];
+            let cols = vec![0, 1];
+            if let Some(sub) = Submatrix::from_indices(&matrix.data, &rows, &cols) {
+                Ok(vec![sub])
+            } else {
+                Ok(vec![])
+            }
+        }
+
+        fn name(&self) -> &str {
+            "MockClusterer"
+        }
+    }
 
     #[test]
     fn test_extract_partition_matrix() {
@@ -174,5 +242,187 @@ mod tests {
         assert_eq!(result[[0, 1]], matrix[[0, 3]]);
         assert_eq!(result[[1, 0]], matrix[[2, 1]]);
         assert_eq!(result[[1, 1]], matrix[[2, 3]]);
+    }
+
+    #[test]
+    fn test_extract_partition_matrix_single_element() {
+        let matrix = Array2::from_shape_vec(
+            (3, 3),
+            (0..9).map(|x| x as f64).collect(),
+        )
+        .unwrap();
+
+        let partition = Partition {
+            row_indices: vec![1],
+            col_indices: vec![2],
+            id: 0,
+        };
+
+        let result = extract_partition_matrix(&matrix, &partition);
+
+        assert_eq!(result.dim(), (1, 1));
+        assert_eq!(result[[0, 0]], matrix[[1, 2]]);
+    }
+
+    #[test]
+    fn test_extract_partition_matrix_full_rows() {
+        let matrix = Array2::from_shape_vec(
+            (3, 4),
+            (0..12).map(|x| x as f64).collect(),
+        )
+        .unwrap();
+
+        let partition = Partition {
+            row_indices: vec![0, 1, 2],
+            col_indices: vec![0, 1, 2, 3],
+            id: 0,
+        };
+
+        let result = extract_partition_matrix(&matrix, &partition);
+
+        assert_eq!(result.dim(), (3, 4));
+        // Should be identical to original
+        for i in 0..3 {
+            for j in 0..4 {
+                assert_eq!(result[[i, j]], matrix[[i, j]]);
+            }
+        }
+    }
+
+    #[test]
+    fn test_clusterer_adapter_basic() {
+        let adapter = ClustererAdapter::new(MockClusterer);
+        let matrix = Array2::from_shape_vec(
+            (4, 4),
+            (0..16).map(|x| x as f64).collect(),
+        )
+        .unwrap();
+
+        let result = adapter.cluster_local(&matrix).unwrap();
+
+        // MockClusterer returns 1 cluster with rows [0,1], cols [0,1]
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].row_indices, vec![0, 1]);
+        assert_eq!(result[0].col_indices, vec![0, 1]);
+    }
+
+    #[test]
+    fn test_clusterer_adapter_empty_matrix() {
+        let adapter = ClustererAdapter::new(MockClusterer);
+        let matrix = Array2::from_shape_vec((1, 1), vec![0.0]).unwrap();
+
+        let result = adapter.cluster_local(&matrix).unwrap();
+
+        // MockClusterer returns empty for small matrices
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_cluster_partitions_parallel_single_partition() {
+        let matrix = Array2::from_shape_vec(
+            (6, 4),
+            (0..24).map(|x| x as f64).collect(),
+        )
+        .unwrap();
+
+        let partition = Partition {
+            row_indices: vec![0, 1, 2],
+            col_indices: vec![0, 1],
+            id: 0,
+        };
+
+        let local_clusterer = MockLocalClusterer { num_clusters: 2 };
+
+        let results = cluster_partitions_parallel(&matrix, &[partition], &local_clusterer).unwrap();
+
+        assert_eq!(results.len(), 1); // One partition
+        assert!(results[0].len() > 0); // Should have clusters
+    }
+
+    #[test]
+    fn test_cluster_partitions_parallel_multiple_partitions() {
+        let matrix = Array2::from_shape_vec(
+            (8, 6),
+            (0..48).map(|x| x as f64).collect(),
+        )
+        .unwrap();
+
+        let partitions = vec![
+            Partition {
+                row_indices: vec![0, 1, 2],
+                col_indices: vec![0, 1, 2],
+                id: 0,
+            },
+            Partition {
+                row_indices: vec![3, 4, 5],
+                col_indices: vec![3, 4, 5],
+                id: 1,
+            },
+        ];
+
+        let local_clusterer = MockLocalClusterer { num_clusters: 1 };
+
+        let results = cluster_partitions_parallel(&matrix, &partitions, &local_clusterer).unwrap();
+
+        assert_eq!(results.len(), 2); // Two partitions
+        
+        // Each partition should have at least one cluster
+        for partition_result in &results {
+            assert!(partition_result.len() > 0);
+        }
+
+        // Verify indices are correctly mapped back to original matrix
+        for cluster in &results[0] {
+            for &row_idx in &cluster.row_indices {
+                assert!(row_idx < 3); // First partition rows
+            }
+        }
+    }
+
+    #[test]
+    fn test_cluster_partitions_parallel_empty_partitions() {
+        let matrix = Array2::from_shape_vec(
+            (4, 4),
+            (0..16).map(|x| x as f64).collect(),
+        )
+        .unwrap();
+
+        let partitions: Vec<Partition> = vec![];
+        let local_clusterer = MockLocalClusterer { num_clusters: 2 };
+
+        let results = cluster_partitions_parallel(&matrix, &partitions, &local_clusterer).unwrap();
+
+        assert_eq!(results.len(), 0); // No partitions, no results
+    }
+
+    #[test]
+    fn test_cluster_partitions_parallel_preserves_indices() {
+        let matrix = Array2::from_shape_vec(
+            (6, 6),
+            (0..36).map(|x| x as f64).collect(),
+        )
+        .unwrap();
+
+        let partition = Partition {
+            row_indices: vec![1, 3, 5], // Non-contiguous
+            col_indices: vec![0, 2, 4], // Non-contiguous
+            id: 0,
+        };
+
+        let local_clusterer = MockLocalClusterer { num_clusters: 1 };
+
+        let results = cluster_partitions_parallel(&matrix, &[partition], &local_clusterer).unwrap();
+
+        assert_eq!(results.len(), 1);
+        
+        // Verify all returned indices are from the partition
+        for cluster in &results[0] {
+            for &row_idx in &cluster.row_indices {
+                assert!(vec![1, 3, 5].contains(&row_idx));
+            }
+            for &col_idx in &cluster.col_indices {
+                assert!(vec![0, 2, 4].contains(&col_idx));
+            }
+        }
     }
 }
