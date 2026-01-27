@@ -94,8 +94,17 @@ impl Scorer for PearsonScorer {
         let mut correlations = Vec::new();
 
         // 计算行之间的相关性
-        for i in 0..submatrix.row_indices.len() {
-            for j in i + 1..submatrix.row_indices.len() {
+        // Parallelize row correlation computation using Rayon
+        use rayon::prelude::*;
+        
+        // Compute row pairs and correlations in parallel
+        let row_pairs: Vec<(usize, usize)> = (0..submatrix.row_indices.len())
+            .flat_map(|i| ((i+1)..submatrix.row_indices.len()).map(move |j| (i, j)))
+            .collect();
+        
+        let row_correlations: Vec<f64> = row_pairs
+            .par_iter()
+            .map(|&(i, j)| {
                 let row1_idx = submatrix.row_indices[i];
                 let row2_idx = submatrix.row_indices[j];
 
@@ -110,14 +119,20 @@ impl Scorer for PearsonScorer {
                     .map(|&col| data_array2[(row2_idx, col)])
                     .collect();
 
-                let corr = Self::pearson_correlation(&values1, &values2);
-                correlations.push(corr.abs());
-            }
-        }
+                Self::pearson_correlation(&values1, &values2).abs()
+            })
+            .collect();
+        
+        correlations.extend(row_correlations);
 
-        // 计算列之间的相关性
-        for i in 0..submatrix.col_indices.len() {
-            for j in i + 1..submatrix.col_indices.len() {
+        // Parallelize column correlation computation
+        let col_pairs: Vec<(usize, usize)> = (0..submatrix.col_indices.len())
+            .flat_map(|i| ((i+1)..submatrix.col_indices.len()).map(move |j| (i, j)))
+            .collect();
+        
+        let col_correlations: Vec<f64> = col_pairs
+            .par_iter()
+            .map(|&(i, j)| {
                 let col1_idx = submatrix.col_indices[i];
                 let col2_idx = submatrix.col_indices[j];
 
@@ -132,10 +147,11 @@ impl Scorer for PearsonScorer {
                     .map(|&row| data_array2[(row, col2_idx)])
                     .collect();
 
-                let corr = Self::pearson_correlation(&values1, &values2);
-                correlations.push(corr.abs());
-            }
-        }
+                Self::pearson_correlation(&values1, &values2).abs()
+            })
+            .collect();
+        
+        correlations.extend(col_correlations);
 
         // 返回平均相关性
         if correlations.is_empty() {

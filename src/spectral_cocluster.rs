@@ -151,11 +151,19 @@ impl SpectralCocluster {
         n_rows: usize,
         n_cols: usize,
     ) -> Vec<Submatrix<'matrix_life, f64>> {
-        let mut submatrices = Vec::new();
-
         // 对每个行簇和列簇的组合创建子矩阵
-        for row_cluster in 0..self.n_clusters.0 {
-            for col_cluster in 0..self.n_clusters.1 {
+        // Parallelize submatrix creation using Rayon
+        use rayon::prelude::*;
+        
+        // Create all cluster pairs
+        let cluster_pairs: Vec<(usize, usize)> = (0..self.n_clusters.0)
+            .flat_map(|r| (0..self.n_clusters.1).map(move |c| (r, c)))
+            .collect();
+        
+        // Process cluster pairs in parallel
+        let submatrices: Vec<_> = cluster_pairs
+            .par_iter()
+            .filter_map(|&(row_cluster, col_cluster)| {
                 let rows: Vec<usize> = (0..n_rows)
                     .filter(|&i| row_labels[i] == row_cluster)
                     .collect();
@@ -164,13 +172,12 @@ impl SpectralCocluster {
                     .collect();
 
                 if !rows.is_empty() && !cols.is_empty() {
-                    // 使用 crate::submatrix::Submatrix::from_indices
-                    if let Some(submatrix) = crate::submatrix::Submatrix::from_indices(original_matrix_array2, &rows, &cols) {
-                        submatrices.push(submatrix);
-                    }
+                    crate::submatrix::Submatrix::from_indices(original_matrix_array2, &rows, &cols)
+                } else {
+                    None
                 }
-            }
-        }
+            })
+            .collect();
 
         submatrices
     }

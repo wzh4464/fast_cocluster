@@ -110,6 +110,7 @@ impl Coclusterer {
         let dv_inv_sqrt = dv.map(|x| x.powf(-0.5));
 
         // 归一化矩阵，每行乘以du_inv_sqrt，每列乘以dv_inv_sqrt
+        // TODO: Parallelize this operation (requires careful handling of mutable borrows)
         let mut na_matrix_normalized = na_matrix.clone();
         for (i, mut row) in na_matrix_normalized.row_iter_mut().enumerate() {
             row *= du_inv_sqrt[i];
