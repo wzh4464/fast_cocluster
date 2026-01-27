@@ -356,6 +356,97 @@ impl PipelineBuilder {
         self
     }
 
+    /// Convenience method to create a DiMergeCo clusterer with adaptive configuration
+    ///
+    /// # Arguments
+    /// * `k` - Expected number of co-clusters
+    /// * `n` - Total number of samples
+    /// * `delta` - Preservation probability parameter (e.g., 0.05 for 95% preservation)
+    /// * `local_clusterer` - Local clustering algorithm (e.g., SVDClusterer)
+    /// * `num_threads` - Number of threads for parallel execution
+    ///
+    /// # Example
+    /// ```no_run
+    /// use fast_cocluster::pipeline::*;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let pipeline = CoclusterPipeline::builder()
+    ///     .with_dimerge_co(
+    ///         5,                                      // k clusters
+    ///         1000,                                   // n samples
+    ///         0.05,                                   // δ = 5% failure probability
+    ///         Box::new(SVDClusterer::new(5, 0.1)),   // Local clusterer
+    ///         8,                                      // 8 threads
+    ///     )?
+    ///     .with_scorer(Box::new(PearsonScorer::new(3, 3)))
+    ///     .min_score(0.6)
+    ///     .build()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_dimerge_co<C: crate::dimerge_co::LocalClusterer + 'static>(
+        mut self,
+        k: usize,
+        n: usize,
+        delta: f64,
+        local_clusterer: C,
+        num_threads: usize,
+    ) -> Result<Self, Box<dyn Error>> {
+        use crate::dimerge_co::{
+            DiMergeCoClusterer, HierarchicalMergeConfig, MergeStrategy,
+        };
+
+        // Default merge configuration
+        let merge_config = HierarchicalMergeConfig {
+            merge_strategy: MergeStrategy::Adaptive,
+            merge_threshold: 0.5,
+            rescore_merged: true,
+            parallel_level: 2,
+        };
+
+        // Create DiMergeCo clusterer with adaptive partitioning
+        let clusterer = DiMergeCoClusterer::with_adaptive(
+            k,
+            n,
+            delta,
+            local_clusterer,
+            merge_config,
+            num_threads,
+        )?;
+
+        self.clusterer = Some(Box::new(clusterer));
+        Ok(self)
+    }
+
+    /// Create a DiMergeCo clusterer with explicit configuration
+    ///
+    /// For more control over partitioning and merging strategy.
+    pub fn with_dimerge_co_explicit<C: crate::dimerge_co::LocalClusterer + 'static>(
+        mut self,
+        k: usize,
+        n: usize,
+        delta: f64,
+        num_partitions: usize,
+        local_clusterer: C,
+        merge_config: crate::dimerge_co::HierarchicalMergeConfig,
+        num_threads: usize,
+    ) -> Result<Self, Box<dyn Error>> {
+        use crate::dimerge_co::DiMergeCoClusterer;
+
+        let clusterer = DiMergeCoClusterer::new(
+            k,
+            n,
+            delta,
+            num_partitions,
+            local_clusterer,
+            merge_config,
+            num_threads,
+        )?;
+
+        self.clusterer = Some(Box::new(clusterer));
+        Ok(self)
+    }
+
     pub fn with_scorer(mut self, scorer: Box<dyn Scorer>) -> Self {
         self.scorer = Some(scorer);
         self

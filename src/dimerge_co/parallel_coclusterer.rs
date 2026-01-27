@@ -192,16 +192,18 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
     }
 
     /// Apply local clustering on each partition in parallel
-    /// TODO: This is a placeholder - needs proper implementation with lifetime handling
+    ///
+    /// Uses the pipeline_integration::cluster_partitions_parallel function to properly
+    /// handle lifetimes by mapping local partition results to global matrix indices.
     fn parallel_local_clustering<'a>(
         &self,
         matrix: &'a Matrix<f64>,
         partitions: &[Partition],
     ) -> Result<Vec<Vec<Submatrix<'a, f64>>>, DiMergeCoError> {
-        // For now, return empty results for each partition
-        // TODO: Implement proper local clustering with correct lifetime management
-        // This requires refactoring LocalClusterer to work with indices instead of data extraction
-        Ok(partitions.iter().map(|_| Vec::new()).collect())
+        use crate::dimerge_co::pipeline_integration::cluster_partitions_parallel;
+
+        cluster_partitions_parallel(&matrix.data, partitions, &self.local_clusterer)
+            .map_err(|e| DiMergeCoError::InvalidConfiguration(format!("Local clustering failed: {}", e)))
     }
 }
 
@@ -211,6 +213,21 @@ pub struct DiMergeCoResult<'a> {
     pub submatrices: Vec<Submatrix<'a, f64>>,
     /// Algorithm statistics
     pub stats: DiMergeCoStats,
+}
+
+/// Implementation of Clusterer trait for DiMergeCo
+impl<L: LocalClusterer> crate::pipeline::Clusterer for DiMergeCoClusterer<L> {
+    fn cluster<'matrix_life>(
+        &self,
+        matrix: &'matrix_life Matrix<f64>,
+    ) -> Result<Vec<Submatrix<'matrix_life, f64>>, Box<dyn std::error::Error>> {
+        let result = self.run(matrix)?;
+        Ok(result.submatrices)
+    }
+
+    fn name(&self) -> &str {
+        "DiMergeCo"
+    }
 }
 
 /// Wrapper for using existing Clusterer implementations as LocalClusterer
