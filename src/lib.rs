@@ -22,6 +22,7 @@ mod util;
 use cocluster::Coclusterer;
 
 pub mod union_dc;
+pub mod dimerge_co;
 use std::collections::VecDeque;
 use std::thread;
 use std::time::Duration;
