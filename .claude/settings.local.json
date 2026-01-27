@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_serena_serena__check_onboarding_performed",
+      "mcp__plugin_serena_serena__activate_project",
+      "mcp__plugin_serena_serena__onboarding",
+      "mcp__plugin_serena_serena__list_dir",
+      "mcp__plugin_serena_serena__read_file",
+      "mcp__plugin_serena_serena__get_symbols_overview",
+      "Bash(cargo:*)",
+      "Bash(rustc --version:*)",
+      "mcp__plugin_serena_serena__write_memory",
+      "mcp__plugin_serena_serena__read_memory",
+      "mcp__plugin_serena_serena__find_file",
+      "mcp__plugin_serena_serena__find_symbol",
+      "mcp__plugin_serena_serena__replace_content",
+      "mcp__plugin_serena_serena__search_for_pattern",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(echo:*)",
+      "mcp__plugin_serena_serena__insert_after_symbol",
+      "Bash(sw_vers:*)",
+      "Bash(brew list:*)",
+      "Bash(brew info:*)",
+      "Bash(chmod:*)",
+      "Bash(source:*)",
+      "Bash(export OPENBLAS_DIR=/opt/homebrew/opt/openblas)",
+      "Bash(export DYLD_LIBRARY_PATH:*)"
+    ]
+  }
+}

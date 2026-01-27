@@ -368,15 +368,18 @@ impl PipelineBuilder {
     /// # Example
     /// ```no_run
     /// use fast_cocluster::pipeline::*;
+    /// use fast_cocluster::dimerge_co::ClustererAdapter;
+    /// use fast_cocluster::scoring::PearsonScorer;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let local_clusterer = ClustererAdapter::new(SVDClusterer::new(5, 0.1));
     /// let pipeline = CoclusterPipeline::builder()
     ///     .with_dimerge_co(
-    ///         5,                                      // k clusters
-    ///         1000,                                   // n samples
-    ///         0.05,                                   // δ = 5% failure probability
-    ///         Box::new(SVDClusterer::new(5, 0.1)),   // Local clusterer
-    ///         8,                                      // 8 threads
+    ///         5,                 // k clusters
+    ///         1000,              // n samples
+    ///         0.05,              // δ = 5% failure probability
+    ///         local_clusterer,   // Local clusterer
+    ///         8,                 // 8 threads
     ///     )?
     ///     .with_scorer(Box::new(PearsonScorer::new(3, 3)))
     ///     .min_score(0.6)

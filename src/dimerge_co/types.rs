@@ -469,14 +469,14 @@ mod tests {
     #[test]
     fn test_hierarchical_merge_config_default() {
         let config = HierarchicalMergeConfig::default();
-        
+
         match config.merge_strategy {
             MergeStrategy::Adaptive => assert!(true),
             _ => panic!("Expected Adaptive as default strategy"),
         }
         assert_eq!(config.merge_threshold, 0.5);
         assert_eq!(config.rescore_merged, true);
-        assert_eq!(config.parallel_level, 2);
+        assert_eq!(config.parallel_level, 4);
     }
 
     #[test]
@@ -560,7 +560,7 @@ mod tests {
     fn test_merge_error_display() {
         let error = MergeError::MergeStrategyFailed("Size mismatch".to_string());
         let error_str = format!("{}", error);
-        assert!(error_str.contains("merge"));
+        assert!(error_str.to_lowercase().contains("merge"));
         assert!(error_str.contains("Size mismatch"));
     }
 

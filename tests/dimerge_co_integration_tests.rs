@@ -320,8 +320,7 @@ fn test_dimerge_co_stats_tracking() {
 
     let result = clusterer.run(&matrix).unwrap();
 
-    // Verify stats are tracked
-    assert!(result.stats.phase_times.partitioning_ms > 0);
+    // Verify stats are tracked (partitioning_ms can be 0 for small matrices due to resolution)
     assert!(result.stats.phase_times.total_ms > 0);
     assert_eq!(result.stats.num_partitions, 4); // Adaptive should choose 4
     assert!(result.stats.preservation_prob >= 0.0);
