@@ -177,8 +177,9 @@ fn test_pipeline_integration_with_clusterer_adapter() {
     assert!(result.is_ok());
 
     let step_result = result.unwrap();
-    // Should have some clusters (may be empty depending on scoring threshold)
-    assert!(step_result.submatrices.len() >= 0);
+    // Should complete successfully (may have zero or more clusters depending on scoring threshold)
+    // Just verify the result structure is valid
+    assert!(step_result.scores.len() == step_result.submatrices.len());
 }
 
 #[test]
