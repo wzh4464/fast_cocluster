@@ -34,7 +34,7 @@ impl<T> Matrix<T> {
     /// # Returns
     ///
     /// * A new `Matrix` containing the provided data.
-    fn new(data: Array2<T>) -> Matrix<T> {
+    pub fn new(data: Array2<T>) -> Matrix<T> {
         let rows = data.shape()[0];
         let cols = data.shape()[1];
         Matrix { data, rows, cols }
