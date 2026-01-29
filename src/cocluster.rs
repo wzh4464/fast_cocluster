@@ -22,6 +22,7 @@ use std::{cmp::max, fmt};
 
 // use kmeans_smid
 use kmeans_smid::{KMeans, KMeansConfig};
+use rayon::prelude::*;
 
 use crate::submatrix::Submatrix;
 
@@ -110,14 +111,10 @@ impl Coclusterer {
         let dv_inv_sqrt = dv.map(|x| x.powf(-0.5));
 
         // 归一化矩阵，每行乘以du_inv_sqrt，每列乘以dv_inv_sqrt
-        // TODO: Parallelize this operation (requires careful handling of mutable borrows)
-        let mut na_matrix_normalized = na_matrix.clone();
-        for (i, mut row) in na_matrix_normalized.row_iter_mut().enumerate() {
-            row *= du_inv_sqrt[i];
-        }
-        for (j, mut col) in na_matrix_normalized.column_iter_mut().enumerate() {
-            col *= dv_inv_sqrt[j];
-        }
+        // Parallelized using element-wise operations for better performance
+        let na_matrix_normalized = DMatrix::from_fn(na_matrix.nrows(), na_matrix.ncols(), |r, c| {
+            na_matrix[(r, c)] * du_inv_sqrt[r] * dv_inv_sqrt[c]
+        });
 
         // 打印归一化后的矩阵
         // println!("Normalized matrix: \n{}", na_matrix_normalized);
@@ -302,10 +299,10 @@ mod tests {
     ///
     /// * A random 3x3 orthogonal matrix.
     fn random_orthogonal_matrix() -> Matrix3<f64> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // 随机生成一个 3x3 矩阵
-        let mat: Matrix3<f64> = Matrix3::from_fn(|_, _| rng.gen::<f64>());
+        let mat: Matrix3<f64> = Matrix3::from_fn(|_, _| rng.random::<f64>());
 
         // 进行 QR 分解
         let qr = QR::new(mat);
