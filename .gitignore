@@ -1,1 +1,29 @@
+# Rust build artifacts
 /target
+Cargo.lock
+
+# Platform-specific cargo config (see .cargo/README.md for setup)
+.cargo/config.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.python-version
+
+# Data files
+data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Benchmark results
+/target/criterion

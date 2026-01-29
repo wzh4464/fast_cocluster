@@ -1,0 +1,14 @@
+# Example Cargo config for Linux with system-installed OpenBLAS
+# Copy this file to .cargo/config.toml if you installed OpenBLAS via:
+#   Ubuntu/Debian: sudo apt-get install libopenblas-dev
+#   CentOS/RHEL:   sudo yum install openblas-devel
+
+[build]
+rustflags = [
+    "-C", "link-arg=-lopenblas",
+]
+
+# Note: System libraries are usually in default search paths,
+# so explicit -L flags are typically not needed.
+# If you get linking errors, you may need to add:
+#   "-C", "link-arg=-L/usr/lib/x86_64-linux-gnu",

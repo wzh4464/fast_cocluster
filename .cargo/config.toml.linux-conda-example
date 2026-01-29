@@ -1,0 +1,18 @@
+# Example Cargo config for Linux with Conda-installed OpenBLAS
+# Copy this file to .cargo/config.toml if you're using Conda
+#
+# First install OpenBLAS in your conda environment:
+#   conda install -c conda-forge openblas
+#
+# Then replace $CONDA_PREFIX below with your actual conda environment path
+
+[build]
+rustflags = [
+    "-C", "link-arg=-L$CONDA_PREFIX/lib",
+    "-C", "link-arg=-lopenblas",
+    "-C", "link-arg=-Wl,-rpath,$CONDA_PREFIX/lib",
+]
+
+# Note: Replace $CONDA_PREFIX with the actual path, e.g.:
+#   "/home/username/miniconda3/envs/myenv"
+# Or use: echo $CONDA_PREFIX to find your current conda environment path
