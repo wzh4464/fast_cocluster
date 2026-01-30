@@ -20,8 +20,10 @@ use crate::util::are_equivalent_classifications;
 use crate::util::clone_to_dmatrix;
 use std::{cmp::max, fmt};
 
-// use kmeans_smid
-use kmeans_smid::{KMeans, KMeansConfig};
+// use linfa-clustering for k-means
+use linfa::prelude::*;
+use linfa_clustering::KMeans as LinfaKMeans;
+use ndarray::Array2 as NdArray2;
 use rayon::prelude::*;
 
 use crate::submatrix::Submatrix;
@@ -143,13 +145,44 @@ impl Coclusterer {
             }
         });
 
-        let f_data: Vec<f64> = f.transpose().data.as_slice().iter().copied().collect();
-        let kmeans_f: KMeans<f64, 8> = KMeans::new(f_data, f.nrows(), f.ncols());
+        // Convert DMatrix (column-major) to ndarray Array2 (row-major) for K-means clustering
+        //
+        // Memory Layout:
+        // - nalgebra DMatrix: Column-major (Fortran order) for BLAS/LAPACK compatibility
+        // - ndarray Array2: Row-major (C order) for ML algorithms where each row is a sample
+        //
+        // Why row-by-row copy:
+        // - DMatrix.as_slice() returns column-major data: [col0, col1, ...]
+        // - Array2::from_shape_vec expects row-major data: [row0, row1, ...]
+        // - Direct copy would corrupt sample structure, causing k-means to fail
+        //
+        // Performance: O(n*m) is acceptable as SVD (O(n³)) dominates total runtime
+        let n_samples = f.nrows();
+        let n_features = f.ncols();
+        let mut f_vec = Vec::with_capacity(n_samples * n_features);
 
-        let result_f =
-            kmeans_f.kmeans_lloyd(k, 100, KMeans::init_kmeanplusplus, &KMeansConfig::default());
+        // Copy data row-by-row to preserve sample structure for clustering
+        for i in 0..n_samples {
+            for j in 0..n_features {
+                f_vec.push(f[(i, j)]);
+            }
+        }
 
-        Ok(result_f.assignments)
+        let f_array = NdArray2::from_shape_vec((n_samples, n_features), f_vec)
+            .map_err(|_| "Failed to reshape data for k-means")?;
+
+        // Perform k-means clustering using linfa-clustering
+        let dataset = DatasetBase::from(f_array);
+        let model = LinfaKMeans::params(k)
+            .max_n_iterations(100)
+            .fit(&dataset)
+            .map_err(|_| "K-means clustering failed")?;
+
+        // Extract cluster assignments
+        let predictions = model.predict(dataset);
+        let assignments: Vec<usize> = predictions.targets.to_vec();
+
+        Ok(assignments)
     }
 }
 
