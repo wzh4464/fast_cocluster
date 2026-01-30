@@ -146,9 +146,19 @@ impl Coclusterer {
         });
 
         // Convert DMatrix to ndarray Array2 for linfa-clustering
+        // Important: nalgebra DMatrix is column-major, ndarray is row-major
+        // We need to copy data row-by-row to preserve sample structure
         let n_samples = f.nrows();
         let n_features = f.ncols();
-        let f_vec: Vec<f64> = f.data.as_slice().to_vec();
+        let mut f_vec = Vec::with_capacity(n_samples * n_features);
+
+        // Copy data row-by-row from DMatrix
+        for i in 0..n_samples {
+            for j in 0..n_features {
+                f_vec.push(f[(i, j)]);
+            }
+        }
+
         let f_array = NdArray2::from_shape_vec((n_samples, n_features), f_vec)
             .map_err(|_| "Failed to reshape data for k-means")?;
 
