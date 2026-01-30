@@ -22,29 +22,41 @@ use std::time::Duration;
 
 /// Load Classic4 dataset from .npy file
 fn load_classic4_subset() -> Result<(Array2<f64>, String), Box<dyn Error>> {
-    let data_path = Path::new("data/classic4_subset_1000.npy");
+    // Use small dataset by default (500 docs × 1000 features)
+    // This is fast enough for benchmarking while still being meaningful
+    //
+    // Available sizes:
+    // - tiny:   200 × 500   (~1 second per benchmark)
+    // - small:  500 × 1000  (~5 seconds per benchmark) ← DEFAULT
+    // - medium: 1000 × 2000 (~20 seconds per benchmark)
+    //
+    // To use a different size, change the filename below
+    let data_path = Path::new("data/classic4_benchmark_small.npy");
 
     if !data_path.exists() {
         eprintln!("\n{}", "=".repeat(70));
-        eprintln!("Classic4 dataset not found!");
+        eprintln!("Benchmark dataset not found!");
         eprintln!("{}", "=".repeat(70));
-        eprintln!("Please run: python3 scripts/download_classic4.py");
-        eprintln!("This will download and prepare the Classic4 dataset.\n");
+        eprintln!("Please run:");
+        eprintln!("  python3 scripts/download_classic4.py");
+        eprintln!("  python3 scripts/create_small_benchmark_data.py");
+        eprintln!("\nThis will prepare optimized benchmark datasets.\n");
 
         // Create a synthetic dataset for benchmarking
         eprintln!("Creating synthetic dataset for benchmark...");
-        let matrix = create_synthetic_classic4(1000, 500);
+        let matrix = create_synthetic_classic4(500, 1000);
         return Ok((matrix, "synthetic".to_string()));
     }
 
     // Load using ndarray-npy
     let array: Array2<f64> = ndarray_npy::read_npy(data_path)
-        .map_err(|e| format!("Failed to load Classic4 dataset: {}", e))?;
+        .map_err(|e| format!("Failed to load benchmark dataset: {}", e))?;
 
     Ok((array, "real".to_string()))
 }
 
 /// Create a synthetic dataset resembling Classic4 structure
+/// Default: 500 docs × 1000 features (matching small benchmark dataset)
 fn create_synthetic_classic4(n_docs: usize, n_features: usize) -> Array2<f64> {
     use ndarray_rand::rand_distr::{Distribution, Exp};
     use ndarray_rand::rand::SeedableRng;
