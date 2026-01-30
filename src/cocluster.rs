@@ -20,8 +20,10 @@ use crate::util::are_equivalent_classifications;
 use crate::util::clone_to_dmatrix;
 use std::{cmp::max, fmt};
 
-// use kmeans_smid
-use kmeans_smid::{KMeans, KMeansConfig};
+// use linfa-clustering for k-means
+use linfa::prelude::*;
+use linfa_clustering::KMeans as LinfaKMeans;
+use ndarray::Array2 as NdArray2;
 use rayon::prelude::*;
 
 use crate::submatrix::Submatrix;
@@ -143,13 +145,25 @@ impl Coclusterer {
             }
         });
 
-        let f_data: Vec<f64> = f.transpose().data.as_slice().iter().copied().collect();
-        let kmeans_f: KMeans<f64, 8> = KMeans::new(f_data, f.nrows(), f.ncols());
+        // Convert DMatrix to ndarray Array2 for linfa-clustering
+        let n_samples = f.nrows();
+        let n_features = f.ncols();
+        let f_vec: Vec<f64> = f.data.as_slice().to_vec();
+        let f_array = NdArray2::from_shape_vec((n_samples, n_features), f_vec)
+            .map_err(|_| "Failed to reshape data for k-means")?;
 
-        let result_f =
-            kmeans_f.kmeans_lloyd(k, 100, KMeans::init_kmeanplusplus, &KMeansConfig::default());
+        // Perform k-means clustering using linfa-clustering
+        let dataset = DatasetBase::from(f_array);
+        let model = LinfaKMeans::params(k)
+            .max_n_iterations(100)
+            .fit(&dataset)
+            .map_err(|_| "K-means clustering failed")?;
 
-        Ok(result_f.assignments)
+        // Extract cluster assignments
+        let predictions = model.predict(dataset);
+        let assignments: Vec<usize> = predictions.targets.to_vec();
+
+        Ok(assignments)
     }
 }
 
