@@ -145,14 +145,23 @@ impl Coclusterer {
             }
         });
 
-        // Convert DMatrix to ndarray Array2 for linfa-clustering
-        // Important: nalgebra DMatrix is column-major, ndarray is row-major
-        // We need to copy data row-by-row to preserve sample structure
+        // Convert DMatrix (column-major) to ndarray Array2 (row-major) for K-means clustering
+        //
+        // Memory Layout:
+        // - nalgebra DMatrix: Column-major (Fortran order) for BLAS/LAPACK compatibility
+        // - ndarray Array2: Row-major (C order) for ML algorithms where each row is a sample
+        //
+        // Why row-by-row copy:
+        // - DMatrix.as_slice() returns column-major data: [col0, col1, ...]
+        // - Array2::from_shape_vec expects row-major data: [row0, row1, ...]
+        // - Direct copy would corrupt sample structure, causing k-means to fail
+        //
+        // Performance: O(n*m) is acceptable as SVD (O(n³)) dominates total runtime
         let n_samples = f.nrows();
         let n_features = f.ncols();
         let mut f_vec = Vec::with_capacity(n_samples * n_features);
 
-        // Copy data row-by-row from DMatrix
+        // Copy data row-by-row to preserve sample structure for clustering
         for i in 0..n_samples {
             for j in 0..n_features {
                 f_vec.push(f[(i, j)]);

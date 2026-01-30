@@ -38,14 +38,6 @@ impl SpectralCocluster {
         DMatrix::from_vec(nrows, ncols, data_vec)
     }
 
-    // dmatrix_to_array2 函数不再直接在 fit 中使用，但可能对 build_submatrices 仍然有用，取决于 Matrix 的最终接口
-    // 保留它以防万一，或者如果 Submatrix 仍然需要 Array2 而 Matrix 内部变为 DMatrix
-    fn dmatrix_to_array2(dmatrix: &DMatrix<f64>) -> Array2<f64> {
-        let (nrows, ncols) = dmatrix.shape();
-        let data_vec: Vec<f64> = dmatrix.iter().cloned().collect();
-        Array2::from_shape_vec((nrows, ncols), data_vec).expect("Failed to convert DMatrix to Array2")
-    }
-
     pub fn fit<'matrix_life>(
         &self, 
         matrix: &'matrix_life Matrix<f64>

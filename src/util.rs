@@ -35,12 +35,41 @@ pub fn are_equivalent_classifications(a: Vec<usize>, b: Vec<usize>) -> bool {
     true
 }
 
+/// Converts an ndarray ArrayView2 (row-major) to nalgebra DMatrix (column-major).
+///
+/// # Memory Layout Handling
+///
+/// This function correctly handles the difference in memory layout between:
+/// - **ndarray**: Row-major (C order) - iterates as [row0_col0, row0_col1, ..., row1_col0, ...]
+/// - **nalgebra**: Column-major (Fortran order) - stores as [col0_row0, col0_row1, ..., col1_row0, ...]
+///
+/// The conversion is done by:
+/// 1. Collecting elements in row-major order from ndarray
+/// 2. Creating a transposed DMatrix with swapped dimensions
+/// 3. Transposing back to get the correct layout
+///
+/// This preserves the logical structure of the matrix despite different memory layouts.
+///
+/// # Performance
+///
+/// O(n*m) copy operation. This is acceptable as SVD operations (O(n³)) dominate runtime.
+/// Using column-major DMatrix enables BLAS/LAPACK optimizations for linear algebra.
+///
+/// # Example
+///
+/// ```rust
+/// use ndarray::array;
+/// let arr = array![[1.0, 2.0], [3.0, 4.0]];
+/// let dmat = clone_to_dmatrix(arr.view());
+/// assert_eq!(dmat[(0, 0)], 1.0);
+/// assert_eq!(dmat[(1, 1)], 4.0);
+/// ```
 pub fn clone_to_dmatrix<T>(array_view: ndarray::ArrayView2<T>) -> DMatrix<T>
 where
     T: Clone,
     T: na::Scalar,
 {
-    let nrows = array_view.ncols();
+    let nrows = array_view.ncols();  // Intentionally swapped for transpose trick
     let ncols = array_view.nrows();
     let elements = array_view.iter().cloned().collect::<Vec<T>>();
     DMatrix::from_vec(nrows, ncols, elements).transpose()
