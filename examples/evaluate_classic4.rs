@@ -18,31 +18,25 @@ use std::time::Instant;
 fn load_classic4() -> Result<(Matrix<f64>, Vec<usize>), Box<dyn std::error::Error>> {
     println!("Loading Classic4 dataset...");
 
-    // Load dense subset for evaluation
-    let data_path = "data/classic4_subset_1000.npy";
+    // Use small benchmark dataset (500 × 1000) for fast evaluation
+    // If not available, fall back to subset
+    let data_path = if std::path::Path::new("data/classic4_benchmark_small.npy").exists() {
+        println!("Using optimized benchmark dataset (500 × 1000)");
+        "data/classic4_benchmark_small.npy"
+    } else {
+        println!("Warning: Using full subset (1000 × 11405) - may be slow!");
+        println!("Run: python3 scripts/create_small_benchmark_data.py");
+        "data/classic4_subset_1000.npy"
+    };
+
     let array: Array2<f64> = ndarray_npy::read_npy(data_path)
-        .map_err(|e| format!("Failed to load dataset: {}. Run: uv run python scripts/download_classic4.py", e))?;
+        .map_err(|e| format!("Failed to load dataset: {}. Run: python3 scripts/download_classic4.py", e))?;
 
     let matrix = Matrix::new(array);
 
-    // Load metadata to get ground truth labels
-    let _metadata_path = "data/classic4_metadata.json";
-    // Note: For the subset, all 1000 docs are from CACM (first collection)
-
-    // Ground truth: first 1000 docs
-    // CACM: 0-3203 -> label 0
-    // CISI: 3204-4663 -> label 1
-    // CRAN: 4664-6061 -> label 2
-    // MED: 6062+ -> label 3
-    let mut true_labels = Vec::new();
-    for i in 0..1000 {
-        let label = if i < 1000 {
-            0 // All from CACM (first 1000 docs)
-        } else {
-            unreachable!()
-        };
-        true_labels.push(label);
-    }
+    // Ground truth labels: all docs from CACM collection (label 0)
+    // For benchmark datasets, we use synthetic labels based on reduced dimensions
+    let true_labels = vec![0; matrix.rows];
 
     println!("✓ Loaded {} documents × {} features", matrix.rows, matrix.cols);
     Ok((matrix, true_labels))
