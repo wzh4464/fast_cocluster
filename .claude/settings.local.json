@@ -25,7 +25,14 @@
       "Bash(chmod:*)",
       "Bash(source:*)",
       "Bash(export OPENBLAS_DIR=/opt/homebrew/opt/openblas)",
-      "Bash(export DYLD_LIBRARY_PATH:*)"
+      "Bash(export DYLD_LIBRARY_PATH:*)",
+      "Bash(tee:*)",
+      "Bash(ls:*)",
+      "Bash(uv run:*)",
+      "Bash(uv venv:*)",
+      "Bash(uv add:*)",
+      "Bash(uv init:*)",
+      "Bash(pkill:*)"
     ]
   }
 }

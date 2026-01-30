@@ -13,7 +13,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use fast_cocluster::dimerge_co::*;
 use fast_cocluster::pipeline::*;
-use fast_cocluster::scoring::{CompatibilityScorer, PearsonScorer};
+use fast_cocluster::scoring::PearsonScorer;
 use fast_cocluster::matrix::Matrix;
 use ndarray::Array2;
 use std::error::Error;
@@ -108,40 +108,8 @@ fn create_synthetic_classic4(n_docs: usize, n_features: usize) -> Array2<f64> {
     matrix
 }
 
-/// Benchmark traditional SVD-based pipeline on Classic4
-fn bench_classic4_traditional_pipeline(c: &mut Criterion) {
-    let (matrix_data, data_type) = match load_classic4_subset() {
-        Ok(d) => d,
-        Err(e) => {
-            eprintln!("Error loading dataset: {}", e);
-            return;
-        }
-    };
-
-    let mut group = c.benchmark_group(format!("classic4_{}_traditional", data_type));
-    group.sample_size(10);
-    group.measurement_time(Duration::from_secs(30));
-
-    group.bench_function("svd_pipeline_k4", |b| {
-        b.iter(|| {
-            // Create Matrix from Array2 using public new() method
-            let matrix = Matrix::new(matrix_data.clone());
-
-            let pipeline = CoclusterPipeline::builder()
-                .with_clusterer(Box::new(SVDClusterer::new(4, 0.1)))
-                .with_scorer(Box::new(PearsonScorer::new(3, 3)))
-                .min_score(0.3)
-                .max_submatrices(10)
-                .parallel(true)
-                .build()
-                .unwrap();
-
-            let _ = pipeline.run(black_box(&matrix)).unwrap();
-        });
-    });
-
-    group.finish();
-}
+// Traditional SVD benchmark removed - too slow on large matrices
+// DiMergeCo provides better performance for co-clustering tasks
 
 /// Benchmark DiMergeCo pipeline with different configurations
 fn bench_classic4_dimerge_co_pipeline(c: &mut Criterion) {
@@ -258,69 +226,13 @@ fn bench_classic4_merge_strategies(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark comparison: Traditional vs DiMergeCo
-fn bench_classic4_comparison(c: &mut Criterion) {
-    let (matrix_data, data_type) = match load_classic4_subset() {
-        Ok(d) => d,
-        Err(e) => {
-            eprintln!("Error loading dataset: {}", e);
-            return;
-        }
-    };
-
-    let mut group = c.benchmark_group(format!("classic4_{}_comparison", data_type));
-    group.sample_size(10);
-    group.measurement_time(Duration::from_secs(60));
-
-    // Traditional approach
-    group.bench_function("traditional", |b| {
-        b.iter(|| {
-            let matrix = Matrix::new(matrix_data.clone());
-            let pipeline = CoclusterPipeline::builder()
-                .with_clusterer(Box::new(SVDClusterer::new(4, 0.1)))
-                .with_scorer(Box::new(CompatibilityScorer::new(0.3, 0.3)))
-                .min_score(0.4)
-                .parallel(true)
-                .build()
-                .unwrap();
-
-            let _ = pipeline.run(black_box(&matrix)).unwrap();
-        });
-    });
-
-    // DiMergeCo approach (optimized)
-    group.bench_function("dimerge_co_optimized", |b| {
-        b.iter(|| {
-            let matrix = Matrix::new(matrix_data.clone());
-            let local_clusterer = ClustererAdapter::new(SVDClusterer::new(4, 0.1));
-
-            let pipeline = CoclusterPipeline::builder()
-                .with_dimerge_co(
-                    4,
-                    matrix_data.nrows(),
-                    0.05,
-                    local_clusterer,
-                    4,  // 4 threads
-                )
-                .unwrap()
-                .with_scorer(Box::new(CompatibilityScorer::new(0.3, 0.3)))
-                .min_score(0.4)
-                .build()
-                .unwrap();
-
-            let _ = pipeline.run(black_box(&matrix)).unwrap();
-        });
-    });
-
-    group.finish();
-}
+// Comparison benchmark removed - use evaluate_classic4 example instead
+// For quick comparison: cargo run --release --example evaluate_classic4
 
 criterion_group!(
     classic4_benches,
-    bench_classic4_traditional_pipeline,
     bench_classic4_dimerge_co_pipeline,
     bench_classic4_merge_strategies,
-    bench_classic4_comparison,
 );
 
 criterion_main!(classic4_benches);

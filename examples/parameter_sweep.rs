@@ -30,12 +30,6 @@ struct ExperimentConfig {
 #[derive(Debug)]
 struct ExperimentResult {
     config: ExperimentConfig,
-
-    // Traditional results
-    traditional_time: f64,
-    traditional_clusters: usize,
-    traditional_nmi: f64,
-
     // DiMergeCo results (different configs)
     dimerge_results: Vec<DiMergeCoResult>,
 }
@@ -47,8 +41,6 @@ struct DiMergeCoResult {
     time: f64,
     clusters: usize,
     nmi: f64,
-    speedup: f64,
-    quality_delta: f64, // NMI difference vs traditional
 }
 
 /// Generate synthetic dataset with controlled properties
@@ -185,26 +177,6 @@ fn run_experiment(config: ExperimentConfig) -> ExperimentResult {
     // Generate dataset
     let (matrix, true_labels) = generate_dataset(&config);
 
-    // Run Traditional
-    print!("Running Traditional SVD... ");
-    let start = Instant::now();
-    let pipeline_traditional = CoclusterPipeline::builder()
-        .with_clusterer(Box::new(SVDClusterer::new(config.n_clusters, 0.1)))
-        .with_scorer(Box::new(PearsonScorer::new(3, 3)))
-        .min_score(0.3)
-        .max_submatrices(20)
-        .parallel(true)
-        .build()
-        .unwrap();
-
-    let result_traditional = pipeline_traditional.run(&matrix).unwrap();
-    let traditional_time = start.elapsed().as_secs_f64();
-
-    let pred_labels_traditional = extract_labels(&result_traditional.submatrices, matrix.rows);
-    let traditional_nmi = calculate_nmi(&true_labels, &pred_labels_traditional);
-
-    println!("Done in {:.3}s (NMI: {:.4})", traditional_time, traditional_nmi);
-
     // Run DiMergeCo with different configurations
     let mut dimerge_results = Vec::new();
 
@@ -243,11 +215,8 @@ fn run_experiment(config: ExperimentConfig) -> ExperimentResult {
             let pred_labels_dimerge = extract_labels(&result_dimerge.submatrices, matrix.rows);
             let dimerge_nmi = calculate_nmi(&true_labels, &pred_labels_dimerge);
 
-            let speedup = traditional_time / dimerge_time;
-            let quality_delta = dimerge_nmi - traditional_nmi;
-
-            println!("Done in {:.3}s (NMI: {:.4}, Speedup: {:.2}×, ΔQ: {:+.4})",
-                     dimerge_time, dimerge_nmi, speedup, quality_delta);
+            println!("Done in {:.3}s (NMI: {:.4}, Clusters: {})",
+                     dimerge_time, dimerge_nmi, result_dimerge.submatrices.len());
 
             dimerge_results.push(DiMergeCoResult {
                 partitions,
@@ -255,17 +224,12 @@ fn run_experiment(config: ExperimentConfig) -> ExperimentResult {
                 time: dimerge_time,
                 clusters: result_dimerge.submatrices.len(),
                 nmi: dimerge_nmi,
-                speedup,
-                quality_delta,
             });
         }
     }
 
     ExperimentResult {
         config,
-        traditional_time,
-        traditional_clusters: result_traditional.submatrices.len(),
-        traditional_nmi,
         dimerge_results,
     }
 }
@@ -275,90 +239,103 @@ fn print_summary(results: &[ExperimentResult]) {
     println!("SUMMARY: DiMergeCo Performance Analysis");
     println!("{}", "=".repeat(70));
 
-    println!("\n📊 Best Speedup Scenarios (Quality Loss < 5%):");
-    println!("{:<30} {:>8} {:>8} {:>10}", "Scenario", "Speedup", "Quality", "Config");
+    println!("\n📊 Fastest Configurations by Scenario:");
+    println!("{:<30} {:>10} {:>8} {:>10}", "Scenario", "Runtime", "NMI", "Config");
     println!("{}", "-".repeat(70));
 
-    let mut best_scenarios: Vec<_> = results.iter()
-        .flat_map(|exp| {
-            exp.dimerge_results.iter().map(move |dm| {
-                (exp, dm)
-            })
-        })
-        .filter(|(_, dm)| dm.quality_delta.abs() < 0.05) // Quality loss < 5%
-        .collect();
-
-    best_scenarios.sort_by(|a, b| b.1.speedup.partial_cmp(&a.1.speedup).unwrap());
-
-    for (exp, dm) in best_scenarios.iter().take(10) {
-        println!("{:<30} {:>7.2}× {:>7.1}% p{}_t{}",
-                 exp.config.name,
-                 dm.speedup,
-                 dm.quality_delta * 100.0,
-                 dm.partitions,
-                 dm.threads);
+    // Find fastest config for each scenario
+    for exp in results {
+        if let Some(fastest) = exp.dimerge_results.iter()
+            .min_by(|a, b| a.time.partial_cmp(&b.time).unwrap())
+        {
+            println!("{:<30} {:>9.3}s {:>8.4} p{}_t{}",
+                     exp.config.name,
+                     fastest.time,
+                     fastest.nmi,
+                     fastest.partitions,
+                     fastest.threads);
+        }
     }
 
-    println!("\n📈 Quality Improvement Scenarios (Speedup > 1.0×):");
-    println!("{:<30} {:>8} {:>8} {:>10}", "Scenario", "Speedup", "Quality", "Config");
+    println!("\n📈 Best Quality Configurations:");
+    println!("{:<30} {:>10} {:>8} {:>10}", "Scenario", "Runtime", "NMI", "Config");
     println!("{}", "-".repeat(70));
 
-    let mut quality_scenarios: Vec<_> = results.iter()
-        .flat_map(|exp| {
-            exp.dimerge_results.iter().map(move |dm| {
-                (exp, dm)
-            })
-        })
-        .filter(|(_, dm)| dm.quality_delta > 0.0 && dm.speedup > 1.0)
-        .collect();
-
-    quality_scenarios.sort_by(|a, b| b.1.quality_delta.partial_cmp(&a.1.quality_delta).unwrap());
-
-    for (exp, dm) in quality_scenarios.iter().take(10) {
-        println!("{:<30} {:>7.2}× {:>7.1}% p{}_t{}",
-                 exp.config.name,
-                 dm.speedup,
-                 dm.quality_delta * 100.0,
-                 dm.partitions,
-                 dm.threads);
+    // Find best quality config for each scenario
+    for exp in results {
+        if let Some(best_quality) = exp.dimerge_results.iter()
+            .max_by(|a, b| a.nmi.partial_cmp(&b.nmi).unwrap())
+        {
+            println!("{:<30} {:>9.3}s {:>8.4} p{}_t{}",
+                     exp.config.name,
+                     best_quality.time,
+                     best_quality.nmi,
+                     best_quality.partitions,
+                     best_quality.threads);
+        }
     }
 
     println!("\n💡 Key Insights:");
 
-    // Analyze trends
-    let avg_speedup_by_size: std::collections::HashMap<usize, f64> = {
+    // Analyze performance trends by configuration
+    let avg_time_by_config: std::collections::HashMap<(usize, usize), f64> = {
         let mut map = std::collections::HashMap::new();
+        let mut counts = std::collections::HashMap::new();
+
         for exp in results {
-            let avg = exp.dimerge_results.iter()
-                .map(|dm| dm.speedup)
-                .sum::<f64>() / exp.dimerge_results.len() as f64;
-            map.insert(exp.config.n_docs, avg);
+            for dm in &exp.dimerge_results {
+                let key = (dm.partitions, dm.threads);
+                *map.entry(key).or_insert(0.0) += dm.time;
+                *counts.entry(key).or_insert(0) += 1;
+            }
         }
-        map
+
+        map.iter().map(|(k, v)| (*k, v / counts[k] as f64)).collect()
     };
 
-    println!("\n  1. Dataset Size Impact:");
-    for (size, speedup) in avg_speedup_by_size.iter() {
-        println!("     {} docs: {:.2}× average speedup", size, speedup);
+    println!("\n  1. Average Runtime by Configuration:");
+    let mut configs: Vec<_> = avg_time_by_config.iter().collect();
+    configs.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
+    for ((partitions, threads), avg_time) in configs.iter().take(5) {
+        println!("     p{}_t{}: {:.3}s", partitions, threads, avg_time);
     }
 
-    println!("\n  2. Optimal Configuration:");
-    if let Some((_, best_dm)) = best_scenarios.first() {
-        println!("     Partitions: {}", best_dm.partitions);
-        println!("     Threads: {}", best_dm.threads);
-        println!("     Typical speedup: {:.2}×", best_dm.speedup);
+    // Best overall configuration (balance of speed and quality)
+    println!("\n  2. Recommended Configuration:");
+    let mut all_results: Vec<_> = results.iter()
+        .flat_map(|exp| exp.dimerge_results.iter().map(move |dm| (exp, dm)))
+        .collect();
+
+    // Sort by: high NMI (>0.5), then fast runtime
+    all_results.sort_by(|a, b| {
+        let score_a = if a.1.nmi > 0.5 { -a.1.time } else { -1000.0 };
+        let score_b = if b.1.nmi > 0.5 { -b.1.time } else { -1000.0 };
+        score_b.partial_cmp(&score_a).unwrap()
+    });
+
+    if let Some((_, best)) = all_results.first() {
+        println!("     Partitions: {}", best.partitions);
+        println!("     Threads: {}", best.threads);
+        println!("     Typical runtime: {:.3}s", best.time);
+        println!("     Typical NMI: {:.4}", best.nmi);
     }
 
-    println!("\n  3. Quality Trade-off:");
-    let quality_preserved = results.iter()
+    // Quality analysis
+    println!("\n  3. Quality Distribution:");
+    let high_quality = results.iter()
         .flat_map(|exp| exp.dimerge_results.iter())
-        .filter(|dm| dm.quality_delta.abs() < 0.05)
+        .filter(|dm| dm.nmi > 0.7)
+        .count();
+    let medium_quality = results.iter()
+        .flat_map(|exp| exp.dimerge_results.iter())
+        .filter(|dm| dm.nmi > 0.5 && dm.nmi <= 0.7)
         .count();
     let total_configs = results.iter()
         .map(|exp| exp.dimerge_results.len())
         .sum::<usize>();
-    println!("     {}/{} configs maintain quality (within 5%)",
-             quality_preserved, total_configs);
+
+    println!("     High quality (NMI > 0.7): {}/{}", high_quality, total_configs);
+    println!("     Medium quality (NMI 0.5-0.7): {}/{}", medium_quality, total_configs);
 
     println!("\n{}", "=".repeat(70));
 }
