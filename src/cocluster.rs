@@ -83,13 +83,13 @@ impl Coclusterer {
     ///
     /// * A vector that gives the groupiong of the rows and columns.
     pub(crate) fn cocluster(&mut self) -> Result<Vec<usize>, &'static str> {
-        // print self.matrix.view()
-        // println!("self.matrix: \n{}", self.matrix.view());
-
-        // println!("self.matrix shape: {:?}", self.matrix.shape());
-        // println!("self.matrix view shape: {:?}", self.matrix.view().shape());
+        log::info!(
+            "Coclusterer::cocluster: 矩阵 {}×{}, k={}",
+            self.row, self.col, self.k
+        );
 
         // svd to get u,s,v
+        let svd_start = std::time::Instant::now();
         let na_matrix = clone_to_dmatrix(self.matrix.view());
 
         // normalize the matrix: a_ij/sqrt(sum_f(a_if)sum_g(a_gj))
@@ -131,7 +131,9 @@ impl Coclusterer {
         // u, v 取前 self.k 列, 然后 vstack 成 f
         let k = self.k;
 
+        log::info!("  SVD 开始 ({}×{} 归一化矩阵)...", self.row, self.col);
         let (u_mat, v_t_mat) = perform_svd(na_matrix_normalized, k)?;
+        log::info!("  SVD 完成 [{} ms]", svd_start.elapsed().as_millis());
 
         let u = u_mat.view((0, 0), (self.row, k));
         let v = v_t_mat.view((0, 0), (self.col, k));
@@ -172,6 +174,8 @@ impl Coclusterer {
             .map_err(|_| "Failed to reshape data for k-means")?;
 
         // Perform k-means clustering using linfa-clustering
+        log::info!("  K-means 开始 ({} samples, {} features, k={})...", n_samples, n_features, k);
+        let kmeans_start = std::time::Instant::now();
         let dataset = DatasetBase::from(f_array);
         let model = LinfaKMeans::params(k)
             .max_n_iterations(100)
@@ -181,6 +185,7 @@ impl Coclusterer {
         // Extract cluster assignments
         let predictions = model.predict(dataset);
         let assignments: Vec<usize> = predictions.targets.to_vec();
+        log::info!("  K-means 完成 [{} ms]", kmeans_start.elapsed().as_millis());
 
         Ok(assignments)
     }

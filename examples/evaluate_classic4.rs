@@ -3,7 +3,7 @@
 //! This program measures efficiency (runtime) and accuracy (clustering quality)
 //! of the DiMergeCo algorithm with different configurations.
 //!
-//! Run with: cargo run --release --example evaluate_classic4
+//! Run with: RUST_LOG=info cargo run --release --example evaluate_classic4
 
 use fast_cocluster::dimerge_co::*;
 use fast_cocluster::matrix::Matrix;
@@ -13,6 +13,7 @@ use fast_cocluster::submatrix::Submatrix;
 use ndarray::Array2;
 use std::collections::HashMap;
 use std::time::Instant;
+use log::info;
 
 /// Load Classic4 benchmark dataset (optimized size)
 fn load_classic4() -> Result<(Matrix<f64>, Vec<usize>), Box<dyn std::error::Error>> {
@@ -107,6 +108,11 @@ fn extract_labels<'a>(result: &[Submatrix<'a, f64>], n_docs: usize) -> Vec<usize
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 启用日志: RUST_LOG=info cargo run --release --example evaluate_classic4
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format_timestamp_millis()
+        .init();
+
     println!("\n{}", "=".repeat(70));
     println!("DiMergeCo Clustering Evaluation on Classic4");
     println!("{}", "=".repeat(70));
@@ -134,6 +140,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", "-".repeat(40));
 
         let start = Instant::now();
+        info!("[{}] 开始构建 pipeline...", name);
         let local_clusterer = ClustererAdapter::new(SVDClusterer::new(4, 0.1));
 
         let pipeline = CoclusterPipeline::builder()
@@ -151,8 +158,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .max_submatrices(10)
             .build()?;
 
+        info!("[{}] Pipeline 构建完成，开始运行...", name);
         let result = pipeline.run(&matrix)?;
         let runtime = start.elapsed().as_secs_f64();
+        info!("[{}] 完成，耗时 {:.3}s", name, runtime);
 
         let pred_labels = extract_labels(&result.submatrices, matrix.rows);
         let nmi = calculate_nmi(&true_labels, &pred_labels);

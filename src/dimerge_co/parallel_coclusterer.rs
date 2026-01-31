@@ -128,62 +128,75 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
     pub fn run<'a>(&self, matrix: &'a Matrix<f64>) -> Result<DiMergeCoResult<'a>, DiMergeCoError> {
         let start_time = Instant::now();
 
-        // Configure Rayon thread pool
-        rayon::ThreadPoolBuilder::new()
+        // 创建线程池并在其中执行所有并行工作
+        let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(self.num_threads)
             .build()
             .map_err(|e| DiMergeCoError::InvalidConfiguration(format!("Thread pool error: {}", e)))?;
 
-        // Phase 1: Probabilistic Partitioning
-        let partition_start = Instant::now();
-        let partition_result = self.partitioner.partition(&matrix.data)
-            .map_err(DiMergeCoError::Partition)?;
-        let partitioning_ms = partition_start.elapsed().as_millis() as u64;
-
         log::info!(
-            "DiMergeCo Phase 1: Created {} partitions (preservation prob: {:.3})",
-            partition_result.partitions.len(),
-            partition_result.preservation_prob
+            "DiMergeCo: 使用 {} 线程, 矩阵大小 {}×{}",
+            self.num_threads, matrix.rows, matrix.cols
         );
 
-        // Phase 2: Parallel Local Co-clustering
-        let clustering_start = Instant::now();
-        let local_results = self.parallel_local_clustering(matrix, &partition_result.partitions)?;
-        let local_clustering_ms = clustering_start.elapsed().as_millis() as u64;
+        // 在指定线程池内执行所有阶段
+        let (final_result, stats) = pool.install(|| -> Result<_, DiMergeCoError> {
+            // Phase 1: Probabilistic Partitioning
+            let partition_start = Instant::now();
+            let partition_result = self.partitioner.partition(&matrix.data)
+                .map_err(DiMergeCoError::Partition)?;
+            let partitioning_ms = partition_start.elapsed().as_millis() as u64;
 
-        let total_local_clusters: usize = local_results.iter().map(|v| v.len()).sum();
-        log::info!(
-            "DiMergeCo Phase 2: Found {} local co-clusters across {} partitions",
-            total_local_clusters,
-            partition_result.partitions.len()
-        );
+            log::info!(
+                "DiMergeCo Phase 1: Created {} partitions (preservation prob: {:.3}) [{} ms]",
+                partition_result.partitions.len(),
+                partition_result.preservation_prob,
+                partitioning_ms
+            );
 
-        // Phase 3: Hierarchical Merging
-        let merging_start = Instant::now();
-        let final_result = self.merger.execute_parallel(local_results, matrix)
-            .map_err(DiMergeCoError::Merge)?;
-        let merging_ms = merging_start.elapsed().as_millis() as u64;
+            // Phase 2: Parallel Local Co-clustering
+            let clustering_start = Instant::now();
+            let local_results = self.parallel_local_clustering(matrix, &partition_result.partitions)?;
+            let local_clustering_ms = clustering_start.elapsed().as_millis() as u64;
 
-        log::info!(
-            "DiMergeCo Phase 3: Merged to {} final co-clusters",
-            final_result.len()
-        );
+            let total_local_clusters: usize = local_results.iter().map(|v| v.len()).sum();
+            log::info!(
+                "DiMergeCo Phase 2: Found {} local co-clusters across {} partitions [{} ms]",
+                total_local_clusters,
+                partition_result.partitions.len(),
+                local_clustering_ms
+            );
 
-        let total_ms = start_time.elapsed().as_millis() as u64;
+            // Phase 3: Hierarchical Merging
+            let merging_start = Instant::now();
+            let final_result = self.merger.execute_parallel(local_results, matrix)
+                .map_err(DiMergeCoError::Merge)?;
+            let merging_ms = merging_start.elapsed().as_millis() as u64;
 
-        let stats = DiMergeCoStats {
-            preservation_prob: partition_result.preservation_prob,
-            tree_depth: (partition_result.partitions.len() as f64).log2().ceil() as usize,
-            num_partitions: partition_result.partitions.len(),
-            total_local_clusters,
-            final_clusters: final_result.len(),
-            phase_times: PhaseTimings {
-                partitioning_ms,
-                local_clustering_ms,
-                merging_ms,
-                total_ms,
-            },
-        };
+            log::info!(
+                "DiMergeCo Phase 3: Merged to {} final co-clusters [{} ms]",
+                final_result.len(),
+                merging_ms
+            );
+
+            let total_ms = start_time.elapsed().as_millis() as u64;
+
+            let stats = DiMergeCoStats {
+                preservation_prob: partition_result.preservation_prob,
+                tree_depth: (partition_result.partitions.len() as f64).log2().ceil() as usize,
+                num_partitions: partition_result.partitions.len(),
+                total_local_clusters,
+                final_clusters: final_result.len(),
+                phase_times: PhaseTimings {
+                    partitioning_ms,
+                    local_clustering_ms,
+                    merging_ms,
+                    total_ms,
+                },
+            };
+
+            Ok((final_result, stats))
+        })?;
 
         Ok(DiMergeCoResult {
             submatrices: final_result,

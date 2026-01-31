@@ -109,15 +109,33 @@ pub fn cluster_partitions_parallel<'a, L: LocalClusterer>(
 ) -> Result<Vec<Vec<Submatrix<'a, f64>>>, Box<dyn Error + Send + Sync>> {
     use rayon::prelude::*;
 
+    log::info!(
+        "cluster_partitions_parallel: {} partitions, matrix {}×{}",
+        partitions.len(), original_matrix.nrows(), original_matrix.ncols()
+    );
+
     let results: Result<Vec<Vec<Submatrix<'a, f64>>>, Box<dyn Error + Send + Sync>> = partitions
         .par_iter()
-        .map(|partition| -> Result<Vec<Submatrix<'a, f64>>, Box<dyn Error + Send + Sync>> {
+        .enumerate()
+        .map(|(i, partition)| -> Result<Vec<Submatrix<'a, f64>>, Box<dyn Error + Send + Sync>> {
             // Extract partition data
             let partition_matrix = extract_partition_matrix(original_matrix, partition);
+            log::info!(
+                "  Partition {}/{}: {}×{}, 开始本地聚类...",
+                i + 1, partitions.len(),
+                partition_matrix.nrows(), partition_matrix.ncols()
+            );
 
+            let cluster_start = std::time::Instant::now();
             // Cluster on partition
             let local_clusters = local_clusterer.cluster_local(&partition_matrix)
                 .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())) as Box<dyn Error + Send + Sync>)?;
+            log::info!(
+                "  Partition {}/{}: 本地聚类完成, {} clusters [{} ms]",
+                i + 1, partitions.len(),
+                local_clusters.len(),
+                cluster_start.elapsed().as_millis()
+            );
 
             // Map back to original matrix indices
             let mapped: Vec<Submatrix<'a, f64>> = local_clusters
