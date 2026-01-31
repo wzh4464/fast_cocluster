@@ -59,6 +59,7 @@ pub fn are_equivalent_classifications(a: Vec<usize>, b: Vec<usize>) -> bool {
 ///
 /// ```rust
 /// use ndarray::array;
+/// # use fast_cocluster::util::clone_to_dmatrix;
 /// let arr = array![[1.0, 2.0], [3.0, 4.0]];
 /// let dmat = clone_to_dmatrix(arr.view());
 /// assert_eq!(dmat[(0, 0)], 1.0);

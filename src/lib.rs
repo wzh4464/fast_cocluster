@@ -18,7 +18,7 @@ pub mod matrix;
 pub mod pipeline;
 pub mod scoring;
 pub mod spectral_cocluster;
-mod util;
+pub mod util;
 use cocluster::Coclusterer;
 
 pub mod union_dc;
