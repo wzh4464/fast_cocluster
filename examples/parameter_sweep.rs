@@ -39,6 +39,7 @@ struct DiMergeCoResult {
     partitions: usize,
     threads: usize,
     time: f64,
+    #[allow(dead_code)]
     clusters: usize,
     nmi: f64,
 }

@@ -273,7 +273,7 @@ mod tests {
     use super::*;
     use ndarray::Array2;
 
-    fn create_test_cluster(matrix_data: &Array2<f64>, rows: Vec<usize>, cols: Vec<usize>) -> Submatrix<f64> {
+    fn create_test_cluster(matrix_data: &Array2<f64>, rows: Vec<usize>, cols: Vec<usize>) -> Submatrix<'_, f64> {
         Submatrix::from_indices(matrix_data, &rows, &cols).unwrap()
     }
 
