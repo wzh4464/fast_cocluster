@@ -79,19 +79,18 @@ impl ProbabilisticPartitioner {
         })
     }
 
-    /// Partition in parallel (for large matrices)
+    /// 使用指定线程数并行分区
     pub fn partition_parallel(
         &self,
         matrix: &Array2<f64>,
         num_threads: usize,
     ) -> Result<PartitionResult, PartitionError> {
-        // Configure Rayon thread pool
-        rayon::ThreadPoolBuilder::new()
+        let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .build()
             .map_err(|e| PartitionError::Other(format!("Thread pool creation failed: {}", e)))?;
 
-        self.partition(matrix)
+        pool.install(|| self.partition(matrix))
     }
 
     /// Compute truncated SVD for the first k components

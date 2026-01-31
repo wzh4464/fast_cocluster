@@ -2,10 +2,11 @@
 
 ## Development Workflow
 
-- **Local machine**: Edit code, run small tests only (`cargo test` with small data)
+- **Local machine**: Edit code, `cargo check` only (no OpenBLAS, linking fails)
 - **Server**: Run full benchmarks and evaluations via `cargo run --release`
 - **Sync**: Server pulls code from local via `git pull`
-- Local cannot run large datasets (limited resources)
+- Local cannot run `cargo test` or `cargo run` (需要 OpenBLAS 链接)
+- Local 验证用 `cargo check --lib --tests --examples`
 
 ## Quick Reference
 

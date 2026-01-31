@@ -126,11 +126,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "-".repeat(70));
 
     let configs = vec![
-        ("p2_t1", 2, 1),
-        ("p4_t1", 4, 1),
-        ("p4_t2", 4, 2),
-        ("p4_t4", 4, 4),  // Recommended
-        ("p8_t4", 8, 4),
+        ("p2_t1", 2, 1),        // 基线：单线程
+        ("p4_t4", 4, 4),        // 推荐
+        ("p4_t8", 4, 8),        // 更多线程
+        ("p8_t8", 8, 8),        // 更多分区+线程
     ];
 
     let mut results = Vec::new();

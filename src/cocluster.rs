@@ -12,21 +12,14 @@
  * 18-06-2024		Zihan	Refactor Coclusterer and Add Utility Functions
 **/
 // src/cocluster.rs
-use nalgebra::SVD;
-use nalgebra::{DMatrix, DVector, Dyn, Matrix2};
-use ndarray::{stack, Array2};
+use ndarray::{s, Array2};
+use ndarray_linalg::SVD as NdarraySVD;
 extern crate nalgebra as na;
 use crate::util::are_equivalent_classifications;
-use crate::util::clone_to_dmatrix;
-use std::{cmp::max, fmt};
+use std::fmt;
 
-// use linfa-clustering for k-means
 use linfa::prelude::*;
 use linfa_clustering::KMeans as LinfaKMeans;
-use ndarray::Array2 as NdArray2;
-use rayon::prelude::*;
-
-use crate::submatrix::Submatrix;
 
 /// A co-clustering structure that performs k-means clustering on the rows and columns of a matrix.
 pub struct Coclusterer {
@@ -88,92 +81,63 @@ impl Coclusterer {
             self.row, self.col, self.k
         );
 
-        // svd to get u,s,v
         let svd_start = std::time::Instant::now();
-        let na_matrix = clone_to_dmatrix(self.matrix.view());
+        let epsilon = 1e-10;
 
-        // normalize the matrix: a_ij/sqrt(sum_f(a_if)sum_g(a_gj))
-        // println!("Original matrix: \n{}", na_matrix);
+        // 计算行和与列和
+        let du: Vec<f64> = (0..self.row)
+            .map(|r| self.matrix.row(r).sum())
+            .collect();
+        let dv: Vec<f64> = (0..self.col)
+            .map(|c| self.matrix.column(c).sum())
+            .collect();
 
-        // D = sum by row and as a diagonal matrix
-        let one_column = DVector::from_element(self.col, 1.0);
-        let one_row = DVector::from_element(self.row, 1.0).transpose();
+        // D_u^{-1/2}, D_v^{-1/2}，零值归零防止 Inf/NaN
+        let du_inv_sqrt: Vec<f64> = du.iter()
+            .map(|&x| if x.abs() < epsilon { 0.0 } else { x.powf(-0.5) })
+            .collect();
+        let dv_inv_sqrt: Vec<f64> = dv.iter()
+            .map(|&x| if x.abs() < epsilon { 0.0 } else { x.powf(-0.5) })
+            .collect();
 
-        // println!("one_column: \n{}", one_column);
-        // println!("one_row: \n{}", one_row);
+        let zero_rows = du.iter().filter(|&&x| x.abs() < epsilon).count();
+        let zero_cols = dv.iter().filter(|&&x| x.abs() < epsilon).count();
+        if zero_rows > 0 || zero_cols > 0 {
+            log::warn!(
+                "  归一化: {} 零行, {} 零列（已用 epsilon 保护）",
+                zero_rows, zero_cols
+            );
+        }
 
-        let du = &na_matrix * one_column;
-        let dv = (one_row * &na_matrix);
-
-        // println!("du: \n{}", du);
-        // println!("dv: \n{}", dv);
-
-        // 计算du和dv的-1/2次幂
-        let du_inv_sqrt = du.map(|x| x.powf(-0.5));
-        let dv_inv_sqrt = dv.map(|x| x.powf(-0.5));
-
-        // 归一化矩阵，每行乘以du_inv_sqrt，每列乘以dv_inv_sqrt
-        // Parallelized using element-wise operations for better performance
-        let na_matrix_normalized = DMatrix::from_fn(na_matrix.nrows(), na_matrix.ncols(), |r, c| {
-            na_matrix[(r, c)] * du_inv_sqrt[r] * dv_inv_sqrt[c]
-        });
-
-        // 打印归一化后的矩阵
-        // println!("Normalized matrix: \n{}", na_matrix_normalized);
-
-        // panic!("stop");
-
-        // let svd_result = &na_matrix_normalized.svd(true, true);
-        // let u: na::Matrix<f64, Dyn, Dyn, na::VecStorage<f64, Dyn, Dyn>> = svd_result.u.unwrap(); // shaped as (row, row)
-        // let vt: na::Matrix<f64, Dyn, Dyn, na::VecStorage<f64, Dyn, Dyn>> = svd_result.v_t.unwrap(); // shaped as (col, col)
-        // let v: na::Matrix<f64, Dyn, Dyn, na::VecStorage<f64, Dyn, Dyn>> = vt.transpose(); // shaped as (col, row)
-
-        // u, v 取前 self.k 列, 然后 vstack 成 f
-        let k = self.k;
-
-        log::info!("  SVD 开始 ({}×{} 归一化矩阵)...", self.row, self.col);
-        let (u_mat, v_t_mat) = perform_svd(na_matrix_normalized, k)?;
-        log::info!("  SVD 完成 [{} ms]", svd_start.elapsed().as_millis());
-
-        let u = u_mat.view((0, 0), (self.row, k));
-        let v = v_t_mat.view((0, 0), (self.col, k));
-
-        // 正常情况下的处理逻辑在这里继续
-        let f = DMatrix::from_fn(self.row + self.col, k, |r, c| {
-            if r < self.row {
-                u[(r, c)]
-            } else {
-                v[(r - self.row, c)]
-            }
-        });
-
-        // Convert DMatrix (column-major) to ndarray Array2 (row-major) for K-means clustering
-        //
-        // Memory Layout:
-        // - nalgebra DMatrix: Column-major (Fortran order) for BLAS/LAPACK compatibility
-        // - ndarray Array2: Row-major (C order) for ML algorithms where each row is a sample
-        //
-        // Why row-by-row copy:
-        // - DMatrix.as_slice() returns column-major data: [col0, col1, ...]
-        // - Array2::from_shape_vec expects row-major data: [row0, row1, ...]
-        // - Direct copy would corrupt sample structure, causing k-means to fail
-        //
-        // Performance: O(n*m) is acceptable as SVD (O(n³)) dominates total runtime
-        let n_samples = f.nrows();
-        let n_features = f.ncols();
-        let mut f_vec = Vec::with_capacity(n_samples * n_features);
-
-        // Copy data row-by-row to preserve sample structure for clustering
-        for i in 0..n_samples {
-            for j in 0..n_features {
-                f_vec.push(f[(i, j)]);
+        // 归一化矩阵（直接使用 ndarray）
+        let mut normalized = Array2::<f64>::zeros((self.row, self.col));
+        for r in 0..self.row {
+            for c in 0..self.col {
+                normalized[[r, c]] = self.matrix[[r, c]] * du_inv_sqrt[r] * dv_inv_sqrt[c];
             }
         }
 
-        let f_array = NdArray2::from_shape_vec((n_samples, n_features), f_vec)
-            .map_err(|_| "Failed to reshape data for k-means")?;
+        let k = self.k;
+        log::info!("  SVD 开始 ({}×{} 归一化矩阵, ndarray-linalg/OpenBLAS)...", self.row, self.col);
+        let (u_mat, v_mat) = perform_svd(&normalized, k)?;
+        log::info!("  SVD 完成 [{} ms]", svd_start.elapsed().as_millis());
 
-        // Perform k-means clustering using linfa-clustering
+        // 拼接 u, v → f 矩阵 (row+col, k)
+        let n_samples = self.row + self.col;
+        let n_features = k;
+        let mut f_array = Array2::<f64>::zeros((n_samples, n_features));
+        for r in 0..self.row {
+            for c in 0..k {
+                f_array[[r, c]] = u_mat[[r, c]];
+            }
+        }
+        for r in 0..self.col {
+            for c in 0..k {
+                f_array[[self.row + r, c]] = v_mat[[r, c]];
+            }
+        }
+
+        // K-means 聚类
         log::info!("  K-means 开始 ({} samples, {} features, k={})...", n_samples, n_features, k);
         let kmeans_start = std::time::Instant::now();
         let dataset = DatasetBase::from(f_array);
@@ -182,7 +146,6 @@ impl Coclusterer {
             .fit(&dataset)
             .map_err(|_| "K-means clustering failed")?;
 
-        // Extract cluster assignments
         let predictions = model.predict(dataset);
         let assignments: Vec<usize> = predictions.targets.to_vec();
         log::info!("  K-means 完成 [{} ms]", kmeans_start.elapsed().as_millis());
@@ -191,23 +154,24 @@ impl Coclusterer {
     }
 }
 
+/// 使用 ndarray-linalg SVD（通过 OpenBLAS/LAPACK）
 fn perform_svd(
-    na_matrix_normalized: DMatrix<f64>,
+    matrix: &Array2<f64>,
     k: usize,
-) -> Result<(DMatrix<f64>, DMatrix<f64>), &'static str> {
-    let svd_result = SVD::new(na_matrix_normalized, true, true);
+) -> Result<(Array2<f64>, Array2<f64>), &'static str> {
+    let (u_opt, _sigma, vt_opt) = matrix
+        .svd(true, true)
+        .map_err(|_| "SVD computation failed")?;
 
-    let u_mat = match svd_result.u {
-        Some(u) => u.columns(0, k).into_owned(), // 获取前 k 列
-        None => return Err("Error: svd_result.u is None"),
-    };
+    let u = u_opt.ok_or("Error: U matrix is None")?;
+    let vt = vt_opt.ok_or("Error: Vt matrix is None")?;
 
-    let v_t_mat = match svd_result.v_t {
-        Some(vt) => vt.rows(0, k).into_owned().transpose(), // 获取前 k 行并转置
-        None => return Err("Error: svd_result.v_t is None"),
-    };
+    // 截取前 k 列
+    let k = k.min(u.ncols()).min(vt.nrows());
+    let u_truncated = u.slice(s![.., ..k]).to_owned();
+    let v_truncated = vt.t().slice(s![.., ..k]).to_owned();
 
-    Ok((u_mat, v_t_mat))
+    Ok((u_truncated, v_truncated))
 }
 
 #[cfg(test)]
