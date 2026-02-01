@@ -156,9 +156,10 @@ impl Coclusterer {
 
 /// 使用 ndarray-linalg SVD（通过 OpenBLAS/LAPACK）
 ///
-/// Zero columns (from normalization of zero-sum columns) are stripped before SVD
-/// to avoid LAPACK convergence issues on highly degenerate matrices, then
-/// reconstructed with zero embeddings in the output V matrix.
+/// Zero rows and columns (from normalization of zero-sum rows/columns) are stripped
+/// before SVD to avoid LAPACK convergence issues on highly degenerate matrices, then
+/// reconstructed with zero embeddings in the output U and V matrices.
+/// If LAPACK dgesdd fails, falls back to nalgebra SVD.
 fn perform_svd(
     matrix: &Array2<f64>,
     k: usize,
@@ -166,64 +167,122 @@ fn perform_svd(
     let nrows = matrix.nrows();
     let ncols = matrix.ncols();
 
-    // Identify non-zero columns; zero columns cause LAPACK dgesdd convergence failures
+    // Identify non-zero rows and columns; zero rows/columns cause LAPACK dgesdd convergence failures
+    let non_zero_rows: Vec<usize> = (0..nrows)
+        .filter(|&r| matrix.row(r).iter().any(|&v| v.abs() > 1e-15))
+        .collect();
     let non_zero_cols: Vec<usize> = (0..ncols)
         .filter(|&c| matrix.column(c).iter().any(|&v| v.abs() > 1e-15))
         .collect();
 
-    if non_zero_cols.is_empty() {
-        log::warn!("  SVD: all columns are zero, returning zero embeddings");
+    if non_zero_cols.is_empty() || non_zero_rows.is_empty() {
+        log::warn!("  SVD: all rows or columns are zero, returning zero embeddings");
         return Ok((
             Array2::<f64>::zeros((nrows, k)),
             Array2::<f64>::zeros((ncols, k)),
         ));
     }
 
-    let n_removed = ncols - non_zero_cols.len();
-    if n_removed > 0 {
+    let rows_removed = nrows - non_zero_rows.len();
+    let cols_removed = ncols - non_zero_cols.len();
+    if rows_removed > 0 || cols_removed > 0 {
         log::info!(
-            "  SVD: stripped {} zero columns ({} → {}) before decomposition",
-            n_removed, ncols, non_zero_cols.len()
+            "  SVD: stripped {} zero rows ({} → {}), {} zero columns ({} → {}) before decomposition",
+            rows_removed, nrows, non_zero_rows.len(),
+            cols_removed, ncols, non_zero_cols.len()
         );
     }
 
-    // Build reduced matrix (only non-zero columns)
-    let reduced = if n_removed > 0 {
-        let mut reduced = Array2::<f64>::zeros((nrows, non_zero_cols.len()));
-        for (new_c, &orig_c) in non_zero_cols.iter().enumerate() {
-            reduced.column_mut(new_c).assign(&matrix.column(orig_c));
+    // Build reduced matrix (only non-zero rows and columns)
+    let reduced = if rows_removed > 0 || cols_removed > 0 {
+        let mut reduced = Array2::<f64>::zeros((non_zero_rows.len(), non_zero_cols.len()));
+        for (new_r, &orig_r) in non_zero_rows.iter().enumerate() {
+            for (new_c, &orig_c) in non_zero_cols.iter().enumerate() {
+                reduced[[new_r, new_c]] = matrix[[orig_r, orig_c]];
+            }
         }
         reduced
     } else {
         matrix.clone()
     };
 
-    let (u_opt, _sigma, vt_opt) = reduced
-        .svd(true, true)
-        .map_err(|e| {
-            log::error!("  SVD LAPACK error: {:?}", e);
-            "SVD computation failed"
-        })?;
-
-    let u = u_opt.ok_or("Error: U matrix is None")?;
-    let vt = vt_opt.ok_or("Error: Vt matrix is None")?;
+    // Try LAPACK dgesdd first, fall back to nalgebra if it fails
+    let svd_result = reduced.svd(true, true);
+    let (u_reduced, vt_reduced) = match svd_result {
+        Ok((u_opt, _sigma, vt_opt)) => {
+            let u = u_opt.ok_or("Error: U matrix is None")?;
+            let vt = vt_opt.ok_or("Error: Vt matrix is None")?;
+            (u, vt)
+        }
+        Err(e) => {
+            log::warn!("  SVD LAPACK dgesdd failed ({:?}), falling back to nalgebra SVD...", e);
+            nalgebra_svd_fallback(&reduced)?
+        }
+    };
 
     // Truncate to k singular vectors
-    let k = k.min(u.ncols()).min(vt.nrows());
-    let u_truncated = u.slice(s![.., ..k]).to_owned();
+    let k = k.min(u_reduced.ncols()).min(vt_reduced.nrows());
+    let u_truncated = u_reduced.slice(s![.., ..k]).to_owned();
+    let v_reduced = vt_reduced.t().slice(s![.., ..k]).to_owned();
 
-    // Reconstruct full V matrix, mapping zero-column entries back to zero embeddings
-    if n_removed > 0 {
-        let v_reduced = vt.t().slice(s![.., ..k]).to_owned();
+    // Reconstruct full U and V matrices with zero embeddings for stripped rows/columns
+    let u_full = if rows_removed > 0 {
+        let mut u_full = Array2::<f64>::zeros((nrows, k));
+        for (new_r, &orig_r) in non_zero_rows.iter().enumerate() {
+            u_full.row_mut(orig_r).assign(&u_truncated.row(new_r));
+        }
+        u_full
+    } else {
+        u_truncated
+    };
+
+    let v_full = if cols_removed > 0 {
         let mut v_full = Array2::<f64>::zeros((ncols, k));
         for (new_c, &orig_c) in non_zero_cols.iter().enumerate() {
             v_full.row_mut(orig_c).assign(&v_reduced.row(new_c));
         }
-        Ok((u_truncated, v_full))
+        v_full
     } else {
-        let v_truncated = vt.t().slice(s![.., ..k]).to_owned();
-        Ok((u_truncated, v_truncated))
+        v_reduced
+    };
+
+    Ok((u_full, v_full))
+}
+
+/// Fallback SVD using nalgebra when LAPACK dgesdd fails to converge.
+fn nalgebra_svd_fallback(
+    matrix: &Array2<f64>,
+) -> Result<(Array2<f64>, Array2<f64>), &'static str> {
+    let nrows = matrix.nrows();
+    let ncols = matrix.ncols();
+
+    // Convert ndarray → nalgebra DMatrix
+    let na_matrix = na::DMatrix::from_fn(nrows, ncols, |r, c| matrix[[r, c]]);
+
+    let svd = na::linalg::SVD::new(na_matrix, true, true);
+
+    let u_na = svd.u.ok_or("nalgebra SVD: U matrix is None")?;
+    let vt_na = svd.v_t.ok_or("nalgebra SVD: Vt matrix is None")?;
+
+    // Convert nalgebra → ndarray
+    let mut u = Array2::<f64>::zeros((nrows, u_na.ncols()));
+    for r in 0..nrows {
+        for c in 0..u_na.ncols() {
+            u[[r, c]] = u_na[(r, c)];
+        }
     }
+
+    let mut vt = Array2::<f64>::zeros((vt_na.nrows(), ncols));
+    for r in 0..vt_na.nrows() {
+        for c in 0..ncols {
+            vt[[r, c]] = vt_na[(r, c)];
+        }
+    }
+
+    log::info!("  SVD: nalgebra fallback succeeded ({}×{} → U {}×{}, Vt {}×{})",
+        nrows, ncols, u.nrows(), u.ncols(), vt.nrows(), vt.ncols());
+
+    Ok((u, vt))
 }
 
 #[cfg(test)]
