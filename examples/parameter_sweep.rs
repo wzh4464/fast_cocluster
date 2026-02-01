@@ -39,7 +39,7 @@ struct DiMergeCoResult {
     partitions: usize,
     threads: usize,
     time: f64,
-    clusters: usize,
+    _clusters: usize,
     nmi: f64,
 }
 
@@ -222,7 +222,7 @@ fn run_experiment(config: ExperimentConfig) -> ExperimentResult {
                 partitions,
                 threads,
                 time: dimerge_time,
-                clusters: result_dimerge.submatrices.len(),
+                _clusters: result_dimerge.submatrices.len(),
                 nmi: dimerge_nmi,
             });
         }
