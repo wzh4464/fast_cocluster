@@ -23,6 +23,9 @@
 use crate::dimerge_co::types::*;
 use ndarray::{s, Array1, Array2, Axis};
 use ndarray_linalg::SVD;
+use rand::seq::SliceRandom;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 use rayon::prelude::*;
 
 /// Probabilistic partitioner using SVD-based sign patterns
@@ -197,6 +200,91 @@ impl ProbabilisticPartitioner {
         }
 
         Ok(partitions)
+    }
+
+    /// Partition using random block assignment (for multi-iteration T_p mode).
+    ///
+    /// Each call with a different `seed` produces a different random partition.
+    /// Rows are randomly shuffled and split into `m_blocks` groups;
+    /// columns are randomly shuffled and split into `n_blocks` groups.
+    /// The cross-product of row/col groups forms the partitions.
+    pub fn partition_random_blocks(
+        &self,
+        matrix: &Array2<f64>,
+        m_blocks: usize,
+        n_blocks: usize,
+        seed: u64,
+    ) -> Result<PartitionResult, PartitionError> {
+        let n_rows = matrix.nrows();
+        let n_cols = matrix.ncols();
+
+        if n_rows < m_blocks || n_cols < n_blocks {
+            return Err(PartitionError::InsufficientData);
+        }
+
+        let mut rng = StdRng::seed_from_u64(seed);
+
+        // Randomly assign rows to m_blocks groups
+        let mut row_indices: Vec<usize> = (0..n_rows).collect();
+        row_indices.shuffle(&mut rng);
+        let row_groups = Self::split_into_groups(&row_indices, m_blocks);
+
+        // Randomly assign columns to n_blocks groups
+        let mut col_indices: Vec<usize> = (0..n_cols).collect();
+        col_indices.shuffle(&mut rng);
+        let col_groups = Self::split_into_groups(&col_indices, n_blocks);
+
+        // Form partitions from cross-product of row/col groups
+        let mut partitions = Vec::new();
+        let mut id = 0;
+        for row_group in &row_groups {
+            for col_group in &col_groups {
+                if row_group.len() >= self.params.min_partition_size.0
+                    && col_group.len() >= self.params.min_partition_size.1
+                {
+                    partitions.push(Partition::new(
+                        row_group.clone(),
+                        col_group.clone(),
+                        id,
+                    ));
+                    id += 1;
+                }
+            }
+        }
+
+        if partitions.is_empty() {
+            return Err(PartitionError::InsufficientData);
+        }
+
+        // Estimate preservation probability based on T_p=1
+        // P ≈ 1 - K * exp(-2 * (φm*s² + ψn*t²))
+        // Simplified: use 1-delta as baseline
+        let preservation_prob = 1.0 - self.params.delta;
+
+        Ok(PartitionResult {
+            partitions,
+            threshold: self.params.tau,
+            preservation_prob,
+            singular_values: vec![],
+        })
+    }
+
+    /// Split indices into n roughly equal groups
+    fn split_into_groups(indices: &[usize], n_groups: usize) -> Vec<Vec<usize>> {
+        let chunk_size = indices.len() / n_groups;
+        let remainder = indices.len() % n_groups;
+
+        let mut groups = Vec::with_capacity(n_groups);
+        let mut start = 0;
+        for i in 0..n_groups {
+            let extra = if i < remainder { 1 } else { 0 };
+            let end = start + chunk_size + extra;
+            let mut group: Vec<usize> = indices[start..end].to_vec();
+            group.sort(); // Sort for consistent submatrix access
+            groups.push(group);
+            start = end;
+        }
+        groups
     }
 
     /// Compute preservation probability from spectral gap

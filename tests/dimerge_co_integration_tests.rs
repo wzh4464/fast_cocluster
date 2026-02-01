@@ -136,6 +136,7 @@ fn test_dimerge_co_with_mock_clusterer() {
         local_clusterer,
         merge_config,
         2,                      // num_threads
+        1,                      // T_p iterations
     )
     .unwrap();
 
@@ -323,6 +324,7 @@ fn test_dimerge_co_stats_tracking() {
     // Verify timing stats are populated (individual phases may be 0 at ms resolution for small matrices)
     assert!(result.stats.phase_times.total_ms
         >= result.stats.phase_times.partitioning_ms.min(result.stats.phase_times.total_ms));
-    assert_eq!(result.stats.num_partitions, 4); // Adaptive should choose 4
+    // Adaptive chooses 4 partitions per iteration, with_adaptive defaults to T_p=10
+    assert_eq!(result.stats.num_partitions, 40); // 4 partitions × 10 iterations
     assert!(result.stats.preservation_prob >= 0.0);
 }

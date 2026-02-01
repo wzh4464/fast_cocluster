@@ -43,6 +43,6 @@ pub mod pipeline_integration;
 pub use types::*;
 pub use probabilistic_partition::ProbabilisticPartitioner;
 pub use hierarchical_merge::HierarchicalMerger;
-pub use parallel_coclusterer::{DiMergeCoClusterer, LocalClusterer};
+pub use parallel_coclusterer::{DiMergeCoClusterer, DiMergeCoResult, LocalClusterer};
 pub use theoretical_validation::TheoreticalValidator;
 pub use pipeline_integration::{ClustererAdapter, cluster_partitions_parallel};

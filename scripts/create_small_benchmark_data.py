@@ -2,96 +2,142 @@
 """
 Create smaller benchmark datasets from Classic4 for faster testing.
 
+IMPORTANT: Samples evenly from all 4 classes (CACM, CISI, CRAN, MED)
+and saves ground truth labels alongside the data.
+
+Uses feature selection (top-N by variance) instead of SVD to preserve
+the non-negative TF-IDF structure needed by spectral co-clustering.
+
 Creates multiple sizes:
-- tiny: 200 docs × 500 features (~800KB)
-- small: 500 docs × 1000 features (~4MB)
-- medium: 1000 docs × 2000 features (~16MB)
+- tiny: 200 docs x 500 features
+- small: 500 docs x 1000 features
+- medium: 1000 docs x 2000 features
 """
 
 import numpy as np
 from pathlib import Path
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.decomposition import TruncatedSVD
+from scipy.io import mmread
 import json
+
 
 def create_benchmark_datasets():
     data_dir = Path(__file__).parent.parent / 'data'
 
-    # Load full dataset
-    print("Loading full Classic4 dataset...")
-    full_data = np.load(data_dir / 'classic4_subset_1000.npy')
-    print(f"Original shape: {full_data.shape}")
-    print(f"Original size: {full_data.nbytes / 1024 / 1024:.1f}MB")
+    # Load full sparse matrix (TF-IDF)
+    print("Loading full Classic4 sparse matrix...")
+    full_sparse = mmread(data_dir / 'classic4.mtx').tocsr()
+    print(f"Full matrix shape: {full_sparse.shape}")
+
+    # Load metadata for class boundaries
+    with open(data_dir / 'classic4_metadata.json') as f:
+        metadata = json.load(f)
+
+    collections = metadata['collections']
+    print(f"Collections: {collections}")
+
+    # Build class labels from document ordering
+    # Documents are loaded in order: cacm, cisi, cran, med
+    class_names = ['cacm', 'cisi', 'cran', 'med']
+    class_sizes = [collections[name] for name in class_names]
+    full_labels = []
+    for class_id, size in enumerate(class_sizes):
+        full_labels.extend([class_id] * size)
+    full_labels = np.array(full_labels)
+    print(f"Total docs with labels: {len(full_labels)}")
 
     # Create different sizes
     configs = [
-        ('tiny', 200, 500, "Fast testing (~1 second per benchmark)"),
-        ('small', 500, 1000, "Quick evaluation (~5 seconds per benchmark)"),
-        ('medium', 1000, 2000, "Standard testing (~20 seconds per benchmark)"),
+        ('tiny', 200, 500, "Fast testing"),
+        ('small', 500, 1000, "Quick evaluation"),
+        ('medium', 1000, 2000, "Standard testing"),
     ]
 
     for name, n_docs, n_features, description in configs:
-        print(f"\n{'='*70}")
-        print(f"Creating {name} dataset: {n_docs} docs × {n_features} features")
+        print(f"\n{'=' * 70}")
+        print(f"Creating {name} dataset: {n_docs} docs x {n_features} features")
         print(f"Purpose: {description}")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
 
-        # Take subset of documents
-        subset_docs = full_data[:n_docs, :]
+        n_classes = 4
+        docs_per_class = n_docs // n_classes
 
-        # Feature selection via SVD (dimensionality reduction)
-        # This also makes the data more suitable for clustering
-        print(f"Reducing features from {subset_docs.shape[1]} to {n_features}...")
+        # Sample evenly from each class
+        selected_indices = []
+        selected_labels = []
+        rng = np.random.RandomState(42)
 
-        # Use TruncatedSVD for dimensionality reduction
-        svd = TruncatedSVD(n_components=min(n_features, n_docs - 1, subset_docs.shape[1] - 1))
-        reduced_data = svd.fit_transform(subset_docs)
+        for class_id in range(n_classes):
+            class_indices = np.where(full_labels == class_id)[0]
+            chosen = rng.choice(
+                class_indices,
+                size=min(docs_per_class, len(class_indices)),
+                replace=False,
+            )
+            chosen.sort()
+            selected_indices.extend(chosen.tolist())
+            selected_labels.extend([class_id] * len(chosen))
 
-        # Ensure we have exactly n_features
-        if reduced_data.shape[1] < n_features:
-            # Pad with zeros if needed
-            padding = np.zeros((reduced_data.shape[0], n_features - reduced_data.shape[1]))
-            reduced_data = np.hstack([reduced_data, padding])
-        elif reduced_data.shape[1] > n_features:
-            # Truncate if needed
-            reduced_data = reduced_data[:, :n_features]
+        selected_indices = np.array(selected_indices)
+        selected_labels = np.array(selected_labels)
 
-        print(f"Final shape: {reduced_data.shape}")
-        print(f"Final size: {reduced_data.nbytes / 1024 / 1024:.1f}MB")
-        print(f"Variance explained: {svd.explained_variance_ratio_[:min(50, len(svd.explained_variance_ratio_))].sum():.2%}")
+        print(f"  Selected {len(selected_indices)} docs ({docs_per_class} per class)")
+        for class_id, cname in enumerate(class_names):
+            count = np.sum(selected_labels == class_id)
+            print(f"    Class {class_id} ({cname}): {count} docs")
 
-        # Save
-        output_file = data_dir / f'classic4_benchmark_{name}.npy'
-        np.save(output_file, reduced_data)
-        print(f"✓ Saved to {output_file}")
+        # Extract subset (still sparse)
+        subset_sparse = full_sparse[selected_indices]
+
+        # Feature selection: top N features by variance across the subset
+        # This preserves the non-negative TF-IDF structure
+        dense_subset = subset_sparse.toarray()
+        feature_var = np.var(dense_subset, axis=0)
+        top_features = np.argsort(feature_var)[-n_features:]
+        top_features.sort()
+
+        reduced = dense_subset[:, top_features]
+
+        sparsity = np.sum(reduced == 0) / reduced.size
+        print(f"  Final shape: {reduced.shape}")
+        print(f"  Sparsity: {sparsity:.2%}")
+        print(f"  Non-negative: {np.all(reduced >= 0)}")
+        print(f"  Value range: [{reduced.min():.4f}, {reduced.max():.4f}]")
+
+        # Save data
+        data_file = data_dir / f'classic4_benchmark_{name}.npy'
+        np.save(data_file, reduced)
+        print(f"  Saved data to {data_file}")
+
+        # Save labels
+        labels_file = data_dir / f'classic4_benchmark_{name}_labels.npy'
+        np.save(labels_file, selected_labels)
+        print(f"  Saved labels to {labels_file}")
 
     # Save metadata
-    metadata = {
+    meta = {
         'datasets': {
             name: {
                 'docs': n_docs,
                 'features': n_features,
                 'description': desc,
-                'file': f'classic4_benchmark_{name}.npy'
+                'data_file': f'classic4_benchmark_{name}.npy',
+                'labels_file': f'classic4_benchmark_{name}_labels.npy',
+                'docs_per_class': n_docs // 4,
+                'class_names': class_names,
             }
             for name, n_docs, n_features, desc in configs
         },
-        'recommendation': 'Use tiny for development, small for CI, medium for thorough testing'
     }
 
-    metadata_file = data_dir / 'benchmark_datasets.json'
-    with open(metadata_file, 'w') as f:
-        json.dump(metadata, f, indent=2)
-    print(f"\n✓ Saved metadata to {metadata_file}")
+    meta_file = data_dir / 'benchmark_datasets.json'
+    with open(meta_file, 'w') as f:
+        json.dump(meta, f, indent=2)
+    print(f"\nSaved metadata to {meta_file}")
 
-    print(f"\n{'='*70}")
-    print("All benchmark datasets created!")
-    print(f"{'='*70}")
-    print("\nUsage in benchmark:")
-    print('  let data_path = "data/classic4_benchmark_tiny.npy";  // Fast')
-    print('  let data_path = "data/classic4_benchmark_small.npy"; // Default')
-    print('  let data_path = "data/classic4_benchmark_medium.npy"; // Thorough')
-    print()
+    print(f"\n{'=' * 70}")
+    print("All benchmark datasets created with proper multi-class sampling!")
+    print(f"{'=' * 70}\n")
+
 
 if __name__ == '__main__':
     create_benchmark_datasets()

@@ -137,6 +137,24 @@ impl Coclusterer {
             }
         }
 
+        // Identify samples with all-zero embeddings (from stripped zero rows/cols in SVD).
+        // These get random K-means assignments and would pollute clusters.
+        let zero_embedding: Vec<bool> = (0..n_samples)
+            .map(|r| (0..n_features).all(|c| f_array[[r, c]].abs() < 1e-15))
+            .collect();
+
+        // Normalize each row of f_array to unit L2 norm before K-means.
+        // This is the standard spectral co-clustering normalization (Dhillon 2001)
+        // that prevents row-dominated vs column-dominated clusters in joint K-means.
+        for r in 0..n_samples {
+            let norm: f64 = (0..n_features).map(|c| f_array[[r, c]].powi(2)).sum::<f64>().sqrt();
+            if norm > 1e-15 {
+                for c in 0..n_features {
+                    f_array[[r, c]] /= norm;
+                }
+            }
+        }
+
         // K-means 聚类
         log::info!("  K-means 开始 ({} samples, {} features, k={})...", n_samples, n_features, k);
         let kmeans_start = std::time::Instant::now();
@@ -147,8 +165,28 @@ impl Coclusterer {
             .map_err(|_| "K-means clustering failed")?;
 
         let predictions = model.predict(dataset);
-        let assignments: Vec<usize> = predictions.targets.to_vec();
+        let mut assignments: Vec<usize> = predictions.targets.to_vec();
         log::info!("  K-means 完成 [{} ms]", kmeans_start.elapsed().as_millis());
+
+        // Mark zero-embedding samples as unassigned
+        let mut unassigned_rows = 0;
+        let mut unassigned_cols = 0;
+        for (idx, &is_zero) in zero_embedding.iter().enumerate() {
+            if is_zero {
+                assignments[idx] = usize::MAX;
+                if idx < self.row {
+                    unassigned_rows += 1;
+                } else {
+                    unassigned_cols += 1;
+                }
+            }
+        }
+        if unassigned_rows > 0 || unassigned_cols > 0 {
+            log::info!(
+                "  排除零嵌入样本: {} 行, {} 列 (不参与聚类)",
+                unassigned_rows, unassigned_cols
+            );
+        }
 
         Ok(assignments)
     }

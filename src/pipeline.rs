@@ -83,6 +83,9 @@ impl Clusterer for SVDClusterer {
         let n_rows = matrix.data.nrows(); // matrix.data is Array2<f64>
 
         for (idx, &cluster) in assignments.iter().enumerate() {
+            if cluster == usize::MAX {
+                continue; // skip zero-embedding samples (unassigned)
+            }
             cluster_map
                 .entry(cluster)
                 .or_insert_with(Vec::new)
@@ -444,6 +447,7 @@ impl PipelineBuilder {
             local_clusterer,
             merge_config,
             num_threads,
+            1, // default T_p=1 for pipeline usage
         )?;
 
         self.clusterer = Some(Box::new(clusterer));
