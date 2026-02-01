@@ -32,7 +32,14 @@
       "Bash(uv venv:*)",
       "Bash(uv add:*)",
       "Bash(uv init:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git push)",
+      "Bash(git worktree:*)",
+      "Bash(git worktree add:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create --title \"fix: resolve lifetime and dead_code warnings\" --body \"$\\(cat <<''EOF''\n## Summary\n- Add explicit `''_` lifetime to `Submatrix` return types in test helpers \\(`hierarchical_merge.rs`, `theoretical_validation.rs`\\) to fix `mismatched_lifetime_syntaxes` warnings\n- Suppress `dead_code` warning on `DiMergeCoResult.clusters` field in `parameter_sweep.rs`\n\n## Test plan\n- [x] `cargo check --lib --tests --examples` passes with zero warnings\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\nEOF\n\\)\")",
+      "Bash(gh pr view:*)",
+      "Bash(gh api:*)"
     ]
   }
 }
