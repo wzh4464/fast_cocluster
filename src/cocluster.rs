@@ -155,23 +155,75 @@ impl Coclusterer {
 }
 
 /// 使用 ndarray-linalg SVD（通过 OpenBLAS/LAPACK）
+///
+/// Zero columns (from normalization of zero-sum columns) are stripped before SVD
+/// to avoid LAPACK convergence issues on highly degenerate matrices, then
+/// reconstructed with zero embeddings in the output V matrix.
 fn perform_svd(
     matrix: &Array2<f64>,
     k: usize,
 ) -> Result<(Array2<f64>, Array2<f64>), &'static str> {
-    let (u_opt, _sigma, vt_opt) = matrix
+    let nrows = matrix.nrows();
+    let ncols = matrix.ncols();
+
+    // Identify non-zero columns; zero columns cause LAPACK dgesdd convergence failures
+    let non_zero_cols: Vec<usize> = (0..ncols)
+        .filter(|&c| matrix.column(c).iter().any(|&v| v.abs() > 1e-15))
+        .collect();
+
+    if non_zero_cols.is_empty() {
+        log::warn!("  SVD: all columns are zero, returning zero embeddings");
+        return Ok((
+            Array2::<f64>::zeros((nrows, k)),
+            Array2::<f64>::zeros((ncols, k)),
+        ));
+    }
+
+    let n_removed = ncols - non_zero_cols.len();
+    if n_removed > 0 {
+        log::info!(
+            "  SVD: stripped {} zero columns ({} → {}) before decomposition",
+            n_removed, ncols, non_zero_cols.len()
+        );
+    }
+
+    // Build reduced matrix (only non-zero columns)
+    let reduced = if n_removed > 0 {
+        let mut reduced = Array2::<f64>::zeros((nrows, non_zero_cols.len()));
+        for (new_c, &orig_c) in non_zero_cols.iter().enumerate() {
+            reduced.column_mut(new_c).assign(&matrix.column(orig_c));
+        }
+        reduced
+    } else {
+        matrix.clone()
+    };
+
+    let (u_opt, _sigma, vt_opt) = reduced
         .svd(true, true)
-        .map_err(|_| "SVD computation failed")?;
+        .map_err(|e| {
+            log::error!("  SVD LAPACK error: {:?}", e);
+            "SVD computation failed"
+        })?;
 
     let u = u_opt.ok_or("Error: U matrix is None")?;
     let vt = vt_opt.ok_or("Error: Vt matrix is None")?;
 
-    // 截取前 k 列
+    // Truncate to k singular vectors
     let k = k.min(u.ncols()).min(vt.nrows());
     let u_truncated = u.slice(s![.., ..k]).to_owned();
-    let v_truncated = vt.t().slice(s![.., ..k]).to_owned();
 
-    Ok((u_truncated, v_truncated))
+    // Reconstruct full V matrix, mapping zero-column entries back to zero embeddings
+    if n_removed > 0 {
+        let v_reduced = vt.t().slice(s![.., ..k]).to_owned();
+        let mut v_full = Array2::<f64>::zeros((ncols, k));
+        for (new_c, &orig_c) in non_zero_cols.iter().enumerate() {
+            v_full.row_mut(orig_c).assign(&v_reduced.row(new_c));
+        }
+        Ok((u_truncated, v_full))
+    } else {
+        let v_truncated = vt.t().slice(s![.., ..k]).to_owned();
+        Ok((u_truncated, v_truncated))
+    }
 }
 
 #[cfg(test)]
