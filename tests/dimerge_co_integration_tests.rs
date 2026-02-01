@@ -132,11 +132,12 @@ fn test_dimerge_co_with_mock_clusterer() {
         3,                      // k
         50,                     // n
         0.05,                   // delta
-        4,                      // num_partitions
         local_clusterer,
         merge_config,
         2,                      // num_threads
         1,                      // T_p iterations
+        2,                      // m_blocks
+        2,                      // n_blocks
     )
     .unwrap();
 

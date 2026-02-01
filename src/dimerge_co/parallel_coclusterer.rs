@@ -65,21 +65,25 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
     /// * `k` - Number of expected co-clusters
     /// * `n` - Total number of samples
     /// * `delta` - Preservation probability parameter (e.g., 0.05 for 95% preservation)
-    /// * `num_partitions` - Number of partitions (power of 2)
     /// * `local_clusterer` - Local clustering algorithm to apply on partitions
     /// * `merge_config` - Configuration for hierarchical merging
     /// * `num_threads` - Number of threads for parallel execution
-    /// * `num_iterations` - Number of T_p random partitioning iterations (paper Theorem 3)
+    /// * `num_iterations` - T_p random partitioning iterations (paper Theorem 3)
+    /// * `m_blocks` - Number of row blocks per random partition
+    /// * `n_blocks` - Number of column blocks per random partition
     pub fn new(
         k: usize,
         n: usize,
         delta: f64,
-        num_partitions: usize,
         local_clusterer: L,
         merge_config: HierarchicalMergeConfig,
         num_threads: usize,
         num_iterations: usize,
+        m_blocks: usize,
+        n_blocks: usize,
     ) -> Result<Self, DiMergeCoError> {
+        // Compute num_partitions as next power of 2 >= m_blocks * n_blocks
+        let num_partitions = (m_blocks * n_blocks).next_power_of_two();
         let partitioner = ProbabilisticPartitioner::new(k, n, delta, num_partitions)
             .map_err(DiMergeCoError::Partition)?;
 
@@ -90,11 +94,6 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
             ..Default::default()
         };
 
-        // Compute block grid dimensions: m_blocks × n_blocks ≈ num_partitions
-        let sqrt_p = (num_partitions as f64).sqrt().ceil() as usize;
-        let m_blocks = sqrt_p.max(2);
-        let n_blocks = sqrt_p.max(2);
-
         Ok(Self {
             partitioner,
             local_clusterer,
@@ -102,12 +101,12 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
             num_threads,
             parallel_config,
             num_iterations: num_iterations.max(1),
-            m_blocks,
-            n_blocks,
+            m_blocks: m_blocks.max(2),
+            n_blocks: n_blocks.max(2),
         })
     }
 
-    /// Create DiMergeCo with adaptive partitioning (uses T_p=10 iterations by default)
+    /// Create DiMergeCo with adaptive partitioning (T_p=10, block grid auto-sized)
     pub fn with_adaptive(
         k: usize,
         n: usize,
@@ -116,25 +115,25 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
         merge_config: HierarchicalMergeConfig,
         num_threads: usize,
     ) -> Result<Self, DiMergeCoError> {
-        // Auto-determine num_partitions
-        let num_partitions = Self::compute_optimal_partitions(n);
+        let blocks = Self::compute_optimal_blocks(n);
         Self::new(
             k,
             n,
             delta,
-            num_partitions,
             local_clusterer,
             merge_config,
             num_threads,
-            10, // default T_p=10 iterations
+            10, // default T_p=10
+            blocks,
+            blocks,
         )
     }
 
-    /// Compute optimal number of partitions (power of 2)
-    fn compute_optimal_partitions(n: usize) -> usize {
-        let target = (n / 100).max(4);
-        let log2 = (target as f64).log2().ceil() as u32;
-        2_usize.pow(log2)
+    /// Compute optimal block grid dimension based on dataset size
+    fn compute_optimal_blocks(n: usize) -> usize {
+        // Target ~50 samples per block
+        let target = (n as f64 / 50.0).sqrt().ceil() as usize;
+        target.max(2)
     }
 
     /// Run the full DiMergeCo algorithm with T_p random partitioning iterations
@@ -323,20 +322,23 @@ mod tests {
             3,
             100,
             0.05,
-            4,
             local_clusterer,
             HierarchicalMergeConfig::default(),
-            4,
-            1, // T_p=1 for basic test
+            4,  // threads
+            1,  // T_p=1
+            2,  // m_blocks
+            2,  // n_blocks
         );
         assert!(clusterer.is_ok());
     }
 
     #[test]
-    fn test_compute_optimal_partitions() {
-        assert_eq!(DiMergeCoClusterer::<TestLocalClusterer>::compute_optimal_partitions(100), 4);
-        assert_eq!(DiMergeCoClusterer::<TestLocalClusterer>::compute_optimal_partitions(500), 8);
-        assert_eq!(DiMergeCoClusterer::<TestLocalClusterer>::compute_optimal_partitions(1000), 16);
+    fn test_compute_optimal_blocks() {
+        // ~50 samples per block: sqrt(n/50)
+        assert_eq!(DiMergeCoClusterer::<TestLocalClusterer>::compute_optimal_blocks(50), 2);
+        assert_eq!(DiMergeCoClusterer::<TestLocalClusterer>::compute_optimal_blocks(200), 2);
+        assert_eq!(DiMergeCoClusterer::<TestLocalClusterer>::compute_optimal_blocks(500), 4);
+        assert_eq!(DiMergeCoClusterer::<TestLocalClusterer>::compute_optimal_blocks(5000), 10);
     }
 
     // Note: extract_partition_data was removed as it's no longer used in the parallel implementation

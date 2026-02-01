@@ -439,15 +439,17 @@ impl PipelineBuilder {
     ) -> Result<Self, Box<dyn Error>> {
         use crate::dimerge_co::DiMergeCoClusterer;
 
+        let sqrt_p = (num_partitions as f64).sqrt().ceil() as usize;
         let clusterer = DiMergeCoClusterer::new(
             k,
             n,
             delta,
-            num_partitions,
             local_clusterer,
             merge_config,
             num_threads,
-            1, // default T_p=1 for pipeline usage
+            1,      // T_p=1 for pipeline usage
+            sqrt_p, // m_blocks
+            sqrt_p, // n_blocks
         )?;
 
         self.clusterer = Some(Box::new(clusterer));

@@ -176,19 +176,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing DiMergeCo with Different Configurations");
     println!("{}", "-".repeat(70));
 
-    // configs: (name, num_partitions, threads, T_p iterations)
-    let configs = vec![
-        ("p4_t4_i1",  4, 4, 1),    // Baseline: T_p=1
-        ("p4_t4_i5",  4, 4, 5),    // T_p=5
-        ("p4_t4_i10", 4, 4, 10),   // T_p=10 (recommended)
-        ("p4_t4_i20", 4, 4, 20),   // T_p=20 (paper default)
+    // configs: (name, m_blocks, n_blocks, threads, T_p iterations)
+    let configs: Vec<(&str, usize, usize, usize, usize)> = vec![
+        ("2x2_i10",   2,  2, 4, 10),   // Previous default
+        ("5x5_i10",   5,  5, 4, 10),   // Medium blocks
+        ("10x10_i10", 10, 10, 4, 10),  // Paper-recommended grid
+        ("10x10_i20", 10, 10, 4, 20),  // More iterations
     ];
 
     let mut results = Vec::new();
 
-    for (name, partitions, threads, iterations) in configs {
-        println!("\nConfiguration: {} ({} partitions, {} threads, T_p={})",
-            name, partitions, threads, iterations);
+    for (name, m_blk, n_blk, threads, iterations) in configs {
+        println!("\nConfiguration: {} ({}x{} blocks, {} threads, T_p={})",
+            name, m_blk, n_blk, threads, iterations);
         println!("{}", "-".repeat(40));
 
         let start = Instant::now();
@@ -199,11 +199,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             4,                  // k clusters
             matrix.rows,        // n samples
             0.05,               // delta
-            partitions,
             local_clusterer,
             HierarchicalMergeConfig::default(),
             threads,
-            iterations,         // T_p random partitioning iterations
+            iterations,         // T_p
+            m_blk,              // row blocks
+            n_blk,              // col blocks
         )?;
 
         info!("[{}] DiMergeCo 构建完成，开始运行...", name);
@@ -241,33 +242,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  Coverage: {}/{} docs", covered_docs.len(), matrix.rows);
         println!("  NMI:      {:.4}", nmi);
 
-        results.push((name, partitions, threads, iterations, runtime, nmi, result.submatrices.len()));
+        results.push((name, m_blk, n_blk, iterations, runtime, nmi, result.submatrices.len()));
     }
 
     println!("\n{}", "=".repeat(70));
     println!("Summary");
     println!("{}", "=".repeat(70));
 
-    println!("\n{:<14} {:>6} {:>7} {:>4} {:>10} {:>10}",
-        "Config", "Parts", "Threads", "T_p", "Runtime", "NMI");
-    println!("{}", "-".repeat(70));
-    for (name, partitions, threads, iters, runtime, nmi, _) in &results {
-        println!("{:<14} {:>6} {:>7} {:>4} {:>9.3}s {:>10.4}",
-            name, partitions, threads, iters, runtime, nmi);
+    println!("\n{:<14} {:>7} {:>4} {:>10} {:>10}",
+        "Config", "Blocks", "T_p", "Runtime", "NMI");
+    println!("{}", "-".repeat(60));
+    for (name, mb, nb, iters, runtime, nmi, _) in &results {
+        println!("{:<14} {:>3}x{:<3} {:>4} {:>9.3}s {:>10.4}",
+            name, mb, nb, iters, runtime, nmi);
     }
 
-    // Find best configuration
+    // Find best NMI
     if let Some((best_name, _, _, _, best_time, best_nmi, _)) = results.iter()
-        .max_by(|a, b| {
-            // Prioritize: NMI > 0.5, then fastest
-            let score_a = if a.5 > 0.5 { 1.0 / a.4 } else { 0.0 };
-            let score_b = if b.5 > 0.5 { 1.0 / b.4 } else { 0.0 };
-            score_a.partial_cmp(&score_b).unwrap()
-        })
+        .max_by(|a, b| a.5.partial_cmp(&b.5).unwrap())
     {
-        println!("\n Recommended Configuration: {}", best_name);
-        println!("   Runtime: {:.3}s", best_time);
-        println!("   NMI:     {:.4}", best_nmi);
+        println!("\n Best NMI: {} (NMI={:.4}, {:.3}s)", best_name, best_nmi, best_time);
     }
 
     println!("\n{}", "=".repeat(70));
