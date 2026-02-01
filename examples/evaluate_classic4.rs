@@ -14,7 +14,6 @@ use linfa_clustering::KMeans;
 use ndarray::Array2;
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
-use log::info;
 
 /// Load Classic4 benchmark dataset with ground truth labels
 fn load_classic4() -> Result<(Matrix<f64>, Vec<usize>), Box<dyn std::error::Error>> {
@@ -176,23 +175,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing DiMergeCo with Different Configurations");
     println!("{}", "-".repeat(70));
 
-    // configs: (name, m_blocks, n_blocks, threads, T_p iterations)
-    let configs: Vec<(&str, usize, usize, usize, usize)> = vec![
-        ("2x2_i10",   2,  2, 4, 10),   // Previous default
-        ("5x5_i10",   5,  5, 4, 10),   // Medium blocks
-        ("10x10_i10", 10, 10, 4, 10),  // Paper-recommended grid
-        ("10x10_i20", 10, 10, 4, 20),  // More iterations
+    // Parameter sweep: (m_blocks, n_blocks, T_p)
+    let block_sizes: Vec<(usize, usize)> = vec![
+        (2, 2), (2, 3), (3, 2), (3, 3), (2, 4), (4, 2), (4, 4), (5, 5),
     ];
+    let t_p_values: Vec<usize> = vec![5, 10, 15, 20, 30];
+    let threads = 4;
+
+    let mut configs: Vec<(String, usize, usize, usize, usize)> = Vec::new();
+    for &(mb, nb) in &block_sizes {
+        for &tp in &t_p_values {
+            let name = format!("{}x{}_i{}", mb, nb, tp);
+            configs.push((name, mb, nb, threads, tp));
+        }
+    }
 
     let mut results = Vec::new();
 
-    for (name, m_blk, n_blk, threads, iterations) in configs {
-        println!("\nConfiguration: {} ({}x{} blocks, {} threads, T_p={})",
-            name, m_blk, n_blk, threads, iterations);
-        println!("{}", "-".repeat(40));
+    println!("Running {} configurations...\n", configs.len());
 
+    for (name, m_blk, n_blk, threads, iterations) in &configs {
         let start = Instant::now();
-        info!("[{}] Building DiMergeCo clusterer...", name);
         let local_clusterer = ClustererAdapter::new(SVDClusterer::new(4, 0.1));
 
         let clusterer = DiMergeCoClusterer::new(
@@ -201,67 +204,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             0.05,               // delta
             local_clusterer,
             HierarchicalMergeConfig::default(),
-            threads,
-            iterations,         // T_p
-            m_blk,              // row blocks
-            n_blk,              // col blocks
+            *threads,
+            *iterations,
+            *m_blk,
+            *n_blk,
         )?;
 
-        info!("[{}] DiMergeCo 构建完成，开始运行...", name);
         let result = clusterer.run(&matrix)?;
         let runtime = start.elapsed().as_secs_f64();
-        info!("[{}] 完成，耗时 {:.3}s", name, runtime);
 
-        // Diagnostic: show co-cluster sizes and coverage
         let mut covered_docs: HashSet<usize> = HashSet::new();
-        for (cid, sub) in result.submatrices.iter().enumerate() {
-            let doc_rows: Vec<usize> = sub.row_indices.iter()
-                .copied().filter(|&r| r < matrix.rows).collect();
-            covered_docs.extend(&doc_rows);
-            info!("[{}]   co-cluster {}: {} doc-rows, {} cols",
-                name, cid, doc_rows.len(), sub.col_indices.len());
+        for sub in result.submatrices.iter() {
+            for &r in &sub.row_indices {
+                if r < matrix.rows { covered_docs.insert(r); }
+            }
         }
-        info!("[{}]   coverage: {}/{} docs in at least one co-cluster",
-            name, covered_docs.len(), matrix.rows);
 
         let pred_labels = extract_labels(&result.submatrices, matrix.rows, 4);
-
-        // Diagnostic: label distribution
-        let mut label_counts: HashMap<usize, usize> = HashMap::new();
-        for &l in &pred_labels {
-            *label_counts.entry(l).or_insert(0) += 1;
-        }
-        let mut sorted_counts: Vec<_> = label_counts.iter().collect();
-        sorted_counts.sort_by_key(|&(k, _)| *k);
-        info!("[{}]   label distribution: {:?}", name, sorted_counts);
-
         let nmi = calculate_nmi(&true_labels, &pred_labels);
 
-        println!("  Runtime:  {:.3}s", runtime);
-        println!("  Clusters: {}", result.submatrices.len());
-        println!("  Coverage: {}/{} docs", covered_docs.len(), matrix.rows);
-        println!("  NMI:      {:.4}", nmi);
+        println!("  {:<12} {}x{} T_p={:<3} => NMI={:.4}  {:.3}s  {} co-cl  {}/{} cov",
+            name, m_blk, n_blk, iterations, nmi, runtime,
+            result.submatrices.len(), covered_docs.len(), matrix.rows);
 
-        results.push((name, m_blk, n_blk, iterations, runtime, nmi, result.submatrices.len()));
+        results.push((name.clone(), *m_blk, *n_blk, *iterations, runtime, nmi, result.submatrices.len()));
     }
+
+    // Sort by NMI descending
+    results.sort_by(|a, b| b.5.partial_cmp(&a.5).unwrap());
 
     println!("\n{}", "=".repeat(70));
-    println!("Summary");
+    println!("Top 10 Configurations (sorted by NMI)");
     println!("{}", "=".repeat(70));
 
-    println!("\n{:<14} {:>7} {:>4} {:>10} {:>10}",
-        "Config", "Blocks", "T_p", "Runtime", "NMI");
+    println!("\n{:<14} {:>7} {:>4} {:>8} {:>8} {:>6}",
+        "Config", "Blocks", "T_p", "NMI", "Runtime", "CoCl");
     println!("{}", "-".repeat(60));
-    for (name, mb, nb, iters, runtime, nmi, _) in &results {
-        println!("{:<14} {:>3}x{:<3} {:>4} {:>9.3}s {:>10.4}",
-            name, mb, nb, iters, runtime, nmi);
+    for (name, mb, nb, iters, runtime, nmi, ncl) in results.iter().take(10) {
+        println!("{:<14} {:>3}x{:<3} {:>4} {:>8.4} {:>7.3}s {:>6}",
+            name, mb, nb, iters, nmi, runtime, ncl);
     }
 
-    // Find best NMI
-    if let Some((best_name, _, _, _, best_time, best_nmi, _)) = results.iter()
-        .max_by(|a, b| a.5.partial_cmp(&b.5).unwrap())
-    {
-        println!("\n Best NMI: {} (NMI={:.4}, {:.3}s)", best_name, best_nmi, best_time);
+    if let Some(best) = results.first() {
+        println!("\n Best: {} (NMI={:.4}, {:.3}s)", best.0, best.5, best.4);
     }
 
     println!("\n{}", "=".repeat(70));
