@@ -141,6 +141,7 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
     /// # Algorithm (paper Theorem 3)
     /// 1. **Phase 1+2**: T_p iterations of random block partitioning + local co-clustering
     ///    - Each iteration uses a different random seed for independent partitions
+    ///    - All iterations run in parallel (they are fully independent)
     ///    - All local co-clusters are collected across iterations
     /// 2. **Phase 3**: Single hierarchical merge on all collected co-clusters
     ///
@@ -161,37 +162,45 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
 
         let (final_result, stats) = pool.install(|| -> Result<_, DiMergeCoError> {
             // Phase 1+2: T_p iterations of random partitioning + local clustering
+            // All iterations are independent and run in parallel
             let phase12_start = Instant::now();
-            let mut all_local_results: Vec<Vec<Submatrix<'a, f64>>> = Vec::new();
-            let mut total_partitions = 0;
 
-            for iter in 0..self.num_iterations {
-                // Random block partitioning with different seed each iteration
-                let partition_result = self.partitioner.partition_random_blocks(
-                    &matrix.data,
-                    self.m_blocks,
-                    self.n_blocks,
-                    iter as u64,
-                ).map_err(DiMergeCoError::Partition)?;
+            let iter_results: Result<Vec<_>, DiMergeCoError> = (0..self.num_iterations)
+                .into_par_iter()
+                .map(|iter| {
+                    // Random block partitioning with different seed each iteration
+                    let partition_result = self.partitioner.partition_random_blocks(
+                        &matrix.data,
+                        self.m_blocks,
+                        self.n_blocks,
+                        iter as u64,
+                    ).map_err(DiMergeCoError::Partition)?;
 
-                let n_parts = partition_result.partitions.len();
-                total_partitions += n_parts;
+                    let n_parts = partition_result.partitions.len();
 
-                log::info!(
-                    "DiMergeCo iter {}/{}: {} partitions from {}x{} blocks",
-                    iter + 1, self.num_iterations, n_parts, self.m_blocks, self.n_blocks
-                );
+                    log::info!(
+                        "DiMergeCo iter {}/{}: {} partitions from {}x{} blocks",
+                        iter + 1, self.num_iterations, n_parts, self.m_blocks, self.n_blocks
+                    );
 
-                // Local clustering on this iteration's partitions
-                let local_results = self.parallel_local_clustering(matrix, &partition_result.partitions)?;
-                let iter_clusters: usize = local_results.iter().map(|v| v.len()).sum();
-                log::info!(
-                    "DiMergeCo iter {}/{}: {} local co-clusters",
-                    iter + 1, self.num_iterations, iter_clusters
-                );
+                    // Local clustering on this iteration's partitions
+                    let local_results = self.parallel_local_clustering(matrix, &partition_result.partitions)?;
+                    let iter_clusters: usize = local_results.iter().map(|v| v.len()).sum();
+                    log::info!(
+                        "DiMergeCo iter {}/{}: {} local co-clusters",
+                        iter + 1, self.num_iterations, iter_clusters
+                    );
 
-                all_local_results.extend(local_results);
-            }
+                    Ok((n_parts, local_results))
+                })
+                .collect();
+
+            let iter_results = iter_results?;
+            let total_partitions: usize = iter_results.iter().map(|(n, _)| n).sum();
+            let all_local_results: Vec<Vec<Submatrix<'a, f64>>> = iter_results
+                .into_iter()
+                .flat_map(|(_, results)| results)
+                .collect();
 
             let phase12_ms = phase12_start.elapsed().as_millis() as u64;
             let total_local_clusters: usize = all_local_results.iter().map(|v| v.len()).sum();

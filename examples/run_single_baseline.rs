@@ -1,5 +1,6 @@
-/// Minimal script: run SCC baseline once on full Classic4 (6460×4667)
-/// to measure randomized SVD speedup.
+/// Run SCC baseline + DiMergeCo on full Classic4 (6460×4667)
+/// with randomized SVD, compare to previous full-SVD results.
+use fast_cocluster::dimerge_co::*;
 use fast_cocluster::matrix::Matrix;
 use fast_cocluster::pipeline::{Clusterer, SVDClusterer};
 use fast_cocluster::submatrix::Submatrix;
@@ -105,7 +106,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
     let clusterer = SVDClusterer::new(k, 0.1);
     let submatrices = clusterer.cluster(&matrix).expect("Baseline SCC failed");
-    let runtime = start.elapsed().as_secs_f64();
+    let runtime_baseline = start.elapsed().as_secs_f64();
+    let runtime = runtime_baseline;
 
     let pred = extract_labels(&submatrices, rows, k);
     let nmi = calculate_nmi(&true_labels, &pred);
@@ -121,6 +123,89 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Previous (full SVD):  NMI=0.7908  ARI=0.7498  Time=1930s");
     println!("  Current  (rand SVD):  NMI={:.4}  ARI={:.4}  Time={:.1}s", nmi, ari, runtime);
     println!("  Speedup: {:.0}x", 1930.0 / runtime);
+
+    // ─── DiMergeCo configs ────────────────────────────────────────
+    println!("\n{}", "=".repeat(70));
+    println!("DiMergeCo + Randomized SVD on Full Classic4");
+    println!("{}", "=".repeat(70));
+
+    let num_threads = num_cpus::get(); // use all CPUs
+    // Top configs from previous full-SVD benchmark + a few larger ones
+    let configs: Vec<(&str, usize, usize, usize)> = vec![
+        ("2x2_tp10",  2, 2, 10),
+        ("2x2_tp20",  2, 2, 20),
+        ("2x2_tp30",  2, 2, 30),
+        ("2x3_tp10",  2, 3, 10),
+        ("2x3_tp20",  2, 3, 20),
+        ("2x3_tp30",  2, 3, 30),
+        ("3x2_tp10",  3, 2, 10),
+        ("3x2_tp20",  3, 2, 20),
+        ("3x3_tp10",  3, 3, 10),
+        ("3x3_tp20",  3, 3, 20),
+        ("3x3_tp30",  3, 3, 30),
+        ("2x4_tp20",  2, 4, 20),
+        ("2x4_tp30",  2, 4, 30),
+        ("4x3_tp20",  4, 3, 20),
+        ("4x4_tp30",  4, 4, 30),
+    ];
+
+    println!("{:<14} {:>6} {:>4} {:>8} {:>8} {:>10} {:>10}",
+        "Config", "Blocks", "T_p", "NMI", "ARI", "Time(s)", "OldTime(s)");
+    println!("{}", "-".repeat(70));
+
+    // Old full-SVD results for comparison
+    let old_results: Vec<(&str, f64, f64, f64)> = vec![
+        ("2x2_tp10",  0.7418, 0.6905, 3417.91),
+        ("2x2_tp20",  0.7462, 0.6815, 5558.90),
+        ("2x2_tp30",  0.7491, 0.6806, 7446.95),
+        ("2x3_tp10",  0.7251, 0.5892, 1572.11),
+        ("2x3_tp20",  0.7338, 0.6256, 2597.85),
+        ("2x3_tp30",  0.7435, 0.6465, 3175.93),
+        ("3x2_tp10",  0.7423, 0.6749, 2323.14),
+        ("3x2_tp20",  0.7438, 0.6638, 3680.75),
+        ("3x3_tp10",  0.7244, 0.6337, 2217.64),
+        ("3x3_tp20",  0.7258, 0.5980, 3207.08),
+        ("3x3_tp30",  0.7289, 0.6013, 4238.49),
+        ("2x4_tp20",  0.7290, 0.5834, 1905.22),
+        ("2x4_tp30",  0.7294, 0.5866, 2319.44),
+        ("4x3_tp20",  0.7239, 0.6220, 2785.51),
+        ("4x4_tp30",  0.7018, 0.5278, 3094.28),
+    ];
+
+    for (label, mb, nb, tp) in &configs {
+        let start = Instant::now();
+        let local_clusterer = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
+        let clusterer = DiMergeCoClusterer::new(
+            k, rows, 0.05, local_clusterer,
+            HierarchicalMergeConfig::default(),
+            num_threads, *tp, *mb, *nb,
+        );
+        match clusterer {
+            Ok(c) => match c.run(&matrix) {
+                Ok(result) => {
+                    let runtime = start.elapsed().as_secs_f64();
+                    let pred = extract_labels(&result.submatrices, rows, k);
+                    let nmi = calculate_nmi(&true_labels, &pred);
+                    let ari = calculate_ari(&true_labels, &pred);
+                    let old_time = old_results.iter()
+                        .find(|(n, _, _, _)| *n == *label)
+                        .map(|(_, _, _, t)| format!("{:.1}", t))
+                        .unwrap_or_else(|| "-".to_string());
+                    println!("{:<14} {:>3}x{:<2} {:>4} {:>8.4} {:>8.4} {:>9.1}s {:>10}",
+                        label, mb, nb, tp, nmi, ari, runtime, old_time);
+                }
+                Err(e) => println!("{:<14} ERROR: {}", label, e),
+            },
+            Err(e) => println!("{:<14} ERROR: {}", label, e),
+        }
+    }
+
+    println!("\n{:<14} {:>6} {:>4} {:>8} {:>8} {:>10} {:>10}",
+        "baseline", "-", "-",
+        &format!("{:.4}", calculate_nmi(&true_labels, &extract_labels(&submatrices, rows, k))),
+        &format!("{:.4}", calculate_ari(&true_labels, &extract_labels(&submatrices, rows, k))),
+        &format!("{:.1}s", runtime_baseline),
+        "1930.3");
 
     Ok(())
 }
