@@ -388,26 +388,25 @@ fn randomized_svd(
     // Step 5: Project to low-dimensional space: B = Q^T * A (l x n)
     let b = q.t().dot(matrix);
 
-    // Step 6: SVD of the small matrix B (l x n)
-    log::info!("  Randomized SVD: computing SVD of small {}×{} matrix", b.nrows(), b.ncols());
-    let svd_result = b.svd(true, true);
-    let (u_b, vt_b) = match svd_result {
-        Ok((u_opt, _sigma, vt_opt)) => {
-            let u = u_opt.ok_or("Randomized SVD: U_B matrix is None")?;
-            let vt = vt_opt.ok_or("Randomized SVD: Vt_B matrix is None")?;
-            (u, vt)
-        }
-        Err(e) => {
-            log::warn!("  Randomized SVD: LAPACK SVD of B failed ({:?}), trying nalgebra fallback", e);
-            nalgebra_svd_fallback(&b)?
-        }
-    };
+    // Step 6: Thin SVD of B (l x n) via nalgebra.
+    // ndarray-linalg's svd() allocates full n×n Vt which is too large when n >> l.
+    // nalgebra's svd() produces thin factors: U(l×l), S(l), V(n×l).
+    log::info!("  Randomized SVD: computing thin SVD of {}×{} B matrix via nalgebra", b.nrows(), b.ncols());
+    let (bl, bn) = (b.nrows(), b.ncols());
+    let na_b = na::DMatrix::from_fn(bl, bn, |r, c| b[[r, c]]);
+    let na_svd = na_b.svd(true, true);
+    let na_u = na_svd.u.ok_or("Randomized SVD: nalgebra U is None")?;
+    let na_v = na_svd.v_t.ok_or("Randomized SVD: nalgebra Vt is None")?.transpose();
 
-    // Step 7: Recover U = Q * U_B, V = V_B^T
-    let k_actual = k.min(u_b.ncols()).min(vt_b.nrows());
+    // Convert nalgebra → ndarray: U_B is l×l, V_B is n×min(l,n)
+    let u_b = Array2::from_shape_fn((na_u.nrows(), na_u.ncols()), |(r, c)| na_u[(r, c)]);
+    let v_b = Array2::from_shape_fn((na_v.nrows(), na_v.ncols()), |(r, c)| na_v[(r, c)]);
+
+    // Step 7: Recover U = Q * U_B[:, :k], V = V_B[:, :k]
+    let k_actual = k.min(u_b.ncols()).min(v_b.ncols());
     let u_b_k = u_b.slice(s![.., ..k_actual]).to_owned();
     let u = q.dot(&u_b_k);
-    let v = vt_b.t().slice(s![.., ..k_actual]).to_owned();
+    let v = v_b.slice(s![.., ..k_actual]).to_owned();
 
     log::info!(
         "  Randomized SVD: done, U {}×{}, V {}×{}",
