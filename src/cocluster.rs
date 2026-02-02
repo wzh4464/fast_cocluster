@@ -244,24 +244,42 @@ fn perform_svd(
         matrix.clone()
     };
 
-    // Try LAPACK dgesdd first, fall back to nalgebra if it fails
-    let svd_result = reduced.svd(true, true);
-    let (u_reduced, vt_reduced) = match svd_result {
-        Ok((u_opt, _sigma, vt_opt)) => {
-            let u = u_opt.ok_or("Error: U matrix is None")?;
-            let vt = vt_opt.ok_or("Error: Vt matrix is None")?;
-            (u, vt)
-        }
-        Err(e) => {
-            log::warn!("  SVD LAPACK dgesdd failed ({:?}), falling back to nalgebra SVD...", e);
-            nalgebra_svd_fallback(&reduced)?
-        }
-    };
+    // Use randomized SVD when k is much smaller than matrix dimensions (huge speedup).
+    // Fall back to full SVD for small matrices or when k is close to min(m, n).
+    let min_dim = reduced.nrows().min(reduced.ncols());
+    let use_randomized = k < min_dim / 2 && min_dim > 50;
 
-    // Truncate to k singular vectors
-    let k = k.min(u_reduced.ncols()).min(vt_reduced.nrows());
-    let u_truncated = u_reduced.slice(s![.., ..k]).to_owned();
-    let v_reduced = vt_reduced.t().slice(s![.., ..k]).to_owned();
+    let (u_truncated, v_reduced) = if use_randomized {
+        log::info!(
+            "  SVD: using randomized truncated SVD (k={} << min_dim={})",
+            k, min_dim
+        );
+        randomized_svd(&reduced, k, 5, 2)?
+    } else {
+        log::info!(
+            "  SVD: using full LAPACK SVD (k={}, min_dim={})",
+            k, min_dim
+        );
+        // Try LAPACK dgesdd first, fall back to nalgebra if it fails
+        let svd_result = reduced.svd(true, true);
+        let (u_reduced, vt_reduced) = match svd_result {
+            Ok((u_opt, _sigma, vt_opt)) => {
+                let u = u_opt.ok_or("Error: U matrix is None")?;
+                let vt = vt_opt.ok_or("Error: Vt matrix is None")?;
+                (u, vt)
+            }
+            Err(e) => {
+                log::warn!("  SVD LAPACK dgesdd failed ({:?}), falling back to nalgebra SVD...", e);
+                nalgebra_svd_fallback(&reduced)?
+            }
+        };
+
+        // Truncate to k singular vectors
+        let k = k.min(u_reduced.ncols()).min(vt_reduced.nrows());
+        let u_truncated = u_reduced.slice(s![.., ..k]).to_owned();
+        let v_truncated = vt_reduced.t().slice(s![.., ..k]).to_owned();
+        (u_truncated, v_truncated)
+    };
 
     // Reconstruct full U and V matrices with zero embeddings for stripped rows/columns
     let u_full = if rows_removed > 0 {
@@ -321,6 +339,104 @@ fn nalgebra_svd_fallback(
         nrows, ncols, u.nrows(), u.ncols(), vt.nrows(), vt.ncols());
 
     Ok((u, vt))
+}
+
+/// Randomized truncated SVD using Halko et al. 2011 (Algorithm 5.1).
+///
+/// Computes an approximate rank-k SVD in O(m*n*k) time instead of O(m*n*min(m,n)).
+/// Returns (U[:, :k], V[:, :k]) — left and right singular vectors.
+fn randomized_svd(
+    matrix: &Array2<f64>,
+    k: usize,
+    n_oversampling: usize,
+    n_power_iter: usize,
+) -> Result<(Array2<f64>, Array2<f64>), &'static str> {
+    use ndarray_rand::rand_distr::StandardNormal;
+    use ndarray_rand::RandomExt;
+
+    let (m, n) = (matrix.nrows(), matrix.ncols());
+    let l = (k + n_oversampling).min(m).min(n);
+
+    log::info!(
+        "  Randomized SVD: {}×{} matrix, k={}, l={} (oversampling={}), power_iter={}",
+        m, n, k, l, n_oversampling, n_power_iter
+    );
+
+    // Step 1: Random Gaussian projection matrix Omega (n x l)
+    let omega: Array2<f64> = Array2::random((n, l), StandardNormal);
+
+    // Step 2: Y = A * Omega (m x l)
+    let mut y = matrix.dot(&omega);
+
+    // Step 3: Power iterations for better approximation: Y = A * (A^T * (A * ... ))
+    // with QR stabilization at each step
+    for i in 0..n_power_iter {
+        // QR factorization of Y for numerical stability
+        y = qr_q(&y)?;
+        // Y = A^T * Q  (n x l)
+        let z = matrix.t().dot(&y);
+        // QR factorization of Z for numerical stability
+        let z_q = qr_q(&z)?;
+        // Y = A * Q_z  (m x l)
+        y = matrix.dot(&z_q);
+        log::debug!("  Randomized SVD: power iteration {}/{}", i + 1, n_power_iter);
+    }
+
+    // Step 4: QR factorization of Y to get orthonormal basis Q
+    let q = qr_q(&y)?;
+
+    // Step 5: Project to low-dimensional space: B = Q^T * A (l x n)
+    let b = q.t().dot(matrix);
+
+    // Step 6: SVD of the small matrix B (l x n)
+    log::info!("  Randomized SVD: computing SVD of small {}×{} matrix", b.nrows(), b.ncols());
+    let svd_result = b.svd(true, true);
+    let (u_b, vt_b) = match svd_result {
+        Ok((u_opt, _sigma, vt_opt)) => {
+            let u = u_opt.ok_or("Randomized SVD: U_B matrix is None")?;
+            let vt = vt_opt.ok_or("Randomized SVD: Vt_B matrix is None")?;
+            (u, vt)
+        }
+        Err(e) => {
+            log::warn!("  Randomized SVD: LAPACK SVD of B failed ({:?}), trying nalgebra fallback", e);
+            nalgebra_svd_fallback(&b)?
+        }
+    };
+
+    // Step 7: Recover U = Q * U_B, V = V_B^T
+    let k_actual = k.min(u_b.ncols()).min(vt_b.nrows());
+    let u_b_k = u_b.slice(s![.., ..k_actual]).to_owned();
+    let u = q.dot(&u_b_k);
+    let v = vt_b.t().slice(s![.., ..k_actual]).to_owned();
+
+    log::info!(
+        "  Randomized SVD: done, U {}×{}, V {}×{}",
+        u.nrows(), u.ncols(), v.nrows(), v.ncols()
+    );
+
+    Ok((u, v))
+}
+
+/// Compute the Q factor of a thin QR decomposition using nalgebra.
+fn qr_q(matrix: &Array2<f64>) -> Result<Array2<f64>, &'static str> {
+    let (m, n) = (matrix.nrows(), matrix.ncols());
+
+    // Convert ndarray → nalgebra DMatrix
+    let na_matrix = na::DMatrix::from_fn(m, n, |r, c| matrix[[r, c]]);
+
+    let qr = na_matrix.qr();
+    let q_na = qr.q();
+
+    // The thin Q has shape (m x min(m,n)); we only need the first n columns
+    let q_cols = n.min(m);
+    let mut q = Array2::<f64>::zeros((m, q_cols));
+    for r in 0..m {
+        for c in 0..q_cols {
+            q[[r, c]] = q_na[(r, c)];
+        }
+    }
+
+    Ok(q)
 }
 
 #[cfg(test)]
