@@ -254,7 +254,7 @@ fn perform_svd(
             "  SVD: using randomized truncated SVD (k={} << min_dim={})",
             k, min_dim
         );
-        randomized_svd(&reduced, k, 5, 2)?
+        randomized_svd(&reduced, k, 10, 3)?
     } else {
         log::info!(
             "  SVD: using full LAPACK SVD (k={}, min_dim={})",
