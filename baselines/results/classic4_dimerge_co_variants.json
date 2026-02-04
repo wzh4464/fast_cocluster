@@ -1,0 +1,88 @@
+{
+  "timestamp": "2026-02-03T10:16:55.823091",
+  "dataset": "classic4",
+  "n_clusters": 4,
+  "m_blocks": 2,
+  "n_blocks": 2,
+  "t_p": 10,
+  "results": [
+    {
+      "method": "DiMergeCo+SpectralCC",
+      "atom": "SpectralCC",
+      "paper_name": "DiMergeCo + SpectralCC (sklearn)",
+      "seed": 0,
+      "nmi": 0.737,
+      "ari": 0.652,
+      "time_s": 15.21,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "error": null
+    },
+    {
+      "method": "DiMergeCo+SpectralCC",
+      "atom": "SpectralCC",
+      "paper_name": "DiMergeCo + SpectralCC (sklearn)",
+      "seed": 1,
+      "nmi": 0.7386,
+      "ari": 0.6495,
+      "time_s": 15.68,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "error": null
+    },
+    {
+      "method": "DiMergeCo+SpectralCC",
+      "atom": "SpectralCC",
+      "paper_name": "DiMergeCo + SpectralCC (sklearn)",
+      "seed": 2,
+      "nmi": 0.7533,
+      "ari": 0.7036,
+      "time_s": 15.73,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "error": null
+    },
+    {
+      "method": "DiMergeCo+FNMF",
+      "atom": "FNMF",
+      "paper_name": "DiMergeCo + FNMF (Kim & Park 2011)",
+      "seed": 0,
+      "nmi": 0.5273,
+      "ari": 0.3991,
+      "time_s": 27.28,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "error": null
+    },
+    {
+      "method": "DiMergeCo+FNMF",
+      "atom": "FNMF",
+      "paper_name": "DiMergeCo + FNMF (Kim & Park 2011)",
+      "seed": 1,
+      "nmi": 0.5181,
+      "ari": 0.3891,
+      "time_s": 25.86,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "error": null
+    },
+    {
+      "method": "DiMergeCo+FNMF",
+      "atom": "FNMF",
+      "paper_name": "DiMergeCo + FNMF (Kim & Park 2011)",
+      "seed": 2,
+      "nmi": 0.5279,
+      "ari": 0.4025,
+      "time_s": 26.09,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "error": null
+    }
+  ]
+}

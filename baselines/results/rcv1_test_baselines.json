@@ -1,0 +1,91 @@
+{
+  "timestamp": "2026-02-04T17:13:29.761575",
+  "dataset": "rcv1_test",
+  "shape": [
+    781265,
+    47236
+  ],
+  "n_clusters": 4,
+  "results": [
+    {
+      "method": "FNMF",
+      "seed": 0,
+      "nmi": 0.2916,
+      "ari": 0.1605,
+      "time_s": 737.28,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 1,
+      "nmi": 0.2969,
+      "ari": 0.1511,
+      "time_s": 659.55,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 2,
+      "nmi": 0.2969,
+      "ari": 0.1511,
+      "time_s": 605.05,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 3,
+      "nmi": 0.2969,
+      "ari": 0.1511,
+      "time_s": 587.11,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 4,
+      "nmi": 0.2969,
+      "ari": 0.1511,
+      "time_s": 607.46,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 5,
+      "nmi": 0.2969,
+      "ari": 0.1511,
+      "time_s": 551.31,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 6,
+      "nmi": 0.2969,
+      "ari": 0.1511,
+      "time_s": 567.37,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 7,
+      "nmi": 0.2969,
+      "ari": 0.1511,
+      "time_s": 604.35,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 8,
+      "nmi": 0.2969,
+      "ari": 0.1511,
+      "time_s": 609.08,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 9,
+      "nmi": 0.2969,
+      "ari": 0.1511,
+      "time_s": 595.75,
+      "error": null
+    }
+  ]
+}

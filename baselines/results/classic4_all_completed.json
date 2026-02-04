@@ -1,0 +1,281 @@
+{
+  "timestamp": "2026-02-02T16:07:32.939227",
+  "dataset": "classic4_paper",
+  "shape": [
+    6460,
+    4667
+  ],
+  "n_clusters": 4,
+  "results": [
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 0,
+      "nmi": 0.7905,
+      "ari": 0.7491,
+      "time_s": 1.54,
+      "error": null
+    },
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 1,
+      "nmi": 0.7906,
+      "ari": 0.7494,
+      "time_s": 1.48,
+      "error": null
+    },
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 2,
+      "nmi": 0.7903,
+      "ari": 0.7487,
+      "time_s": 1.5,
+      "error": null
+    },
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 3,
+      "nmi": 0.7903,
+      "ari": 0.7487,
+      "time_s": 1.49,
+      "error": null
+    },
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 4,
+      "nmi": 0.7903,
+      "ari": 0.7499,
+      "time_s": 1.47,
+      "error": null
+    },
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 5,
+      "nmi": 0.7903,
+      "ari": 0.7487,
+      "time_s": 1.49,
+      "error": null
+    },
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 6,
+      "nmi": 0.7906,
+      "ari": 0.7499,
+      "time_s": 1.49,
+      "error": null
+    },
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 7,
+      "nmi": 0.7903,
+      "ari": 0.7487,
+      "time_s": 1.53,
+      "error": null
+    },
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 8,
+      "nmi": 0.7903,
+      "ari": 0.7487,
+      "time_s": 1.5,
+      "error": null
+    },
+    {
+      "method": "SCC-Dhillon",
+      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "seed": 9,
+      "nmi": 0.7899,
+      "ari": 0.7488,
+      "time_s": 1.53,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 0,
+      "nmi": 0.4315,
+      "ari": 0.2723,
+      "time_s": 0.31,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 1,
+      "nmi": 0.4321,
+      "ari": 0.2684,
+      "time_s": 0.24,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 2,
+      "nmi": 0.4307,
+      "ari": 0.2738,
+      "time_s": 0.24,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 3,
+      "nmi": 0.4305,
+      "ari": 0.2696,
+      "time_s": 0.24,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 4,
+      "nmi": 0.4314,
+      "ari": 0.2767,
+      "time_s": 0.28,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 5,
+      "nmi": 0.431,
+      "ari": 0.2758,
+      "time_s": 0.23,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 6,
+      "nmi": 0.4317,
+      "ari": 0.2689,
+      "time_s": 0.36,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 7,
+      "nmi": 0.432,
+      "ari": 0.2731,
+      "time_s": 0.26,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 8,
+      "nmi": 0.4306,
+      "ari": 0.275,
+      "time_s": 0.3,
+      "error": null
+    },
+    {
+      "method": "SpectralCC",
+      "paper_name": "SpectralCC (sklearn, = SCC Dhillon 2001)",
+      "seed": 9,
+      "nmi": 0.431,
+      "ari": 0.2737,
+      "time_s": 0.25,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 0,
+      "nmi": 0.5784,
+      "ari": 0.4548,
+      "time_s": 0.99,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 1,
+      "nmi": 0.5784,
+      "ari": 0.4548,
+      "time_s": 0.91,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 2,
+      "nmi": 0.6816,
+      "ari": 0.6803,
+      "time_s": 1.05,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 3,
+      "nmi": 0.5784,
+      "ari": 0.4548,
+      "time_s": 0.91,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 4,
+      "nmi": 0.5784,
+      "ari": 0.4548,
+      "time_s": 1.02,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 5,
+      "nmi": 0.5817,
+      "ari": 0.4563,
+      "time_s": 1.07,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 6,
+      "nmi": 0.5784,
+      "ari": 0.4548,
+      "time_s": 0.9,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 7,
+      "nmi": 0.6816,
+      "ari": 0.6796,
+      "time_s": 1.02,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 8,
+      "nmi": 0.6791,
+      "ari": 0.6669,
+      "time_s": 1.02,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "paper_name": "FNMTF (Kim & Park 2011, fast NMF + argmax)",
+      "seed": 9,
+      "nmi": 0.5784,
+      "ari": 0.4548,
+      "time_s": 0.9,
+      "error": null
+    }
+  ]
+}
