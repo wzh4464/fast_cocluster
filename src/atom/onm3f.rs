@@ -19,21 +19,21 @@ impl TriFactorUpdater for Onm3fUpdater {
         // F ← F * ((X*G*S^T) / (F*F^T*X*G*S^T))^0.5
         let xgs = x.dot(g).dot(&s.t());
         let denom = f.dot(&f.t()).dot(&xgs);
-        *f = sqrt_multiplicative_update(f, &xgs, &denom, 1e-16);
+        *f = sqrt_multiplicative_update(f, &xgs, &denom, 1e-10);
     }
 
     fn update_g(&self, x: &Array2<f64>, f: &Array2<f64>, s: &Array2<f64>, g: &mut Array2<f64>) {
         // G ← G * ((X^T*F*S) / (G*G^T*X^T*F*S))^0.5
         let xtfs = x.t().dot(f).dot(s);
         let denom = g.dot(&g.t()).dot(&xtfs);
-        *g = sqrt_multiplicative_update(g, &xtfs, &denom, 1e-16);
+        *g = sqrt_multiplicative_update(g, &xtfs, &denom, 1e-10);
     }
 
     fn update_s(&self, x: &Array2<f64>, f: &Array2<f64>, s: &mut Array2<f64>, g: &Array2<f64>) {
         // S ← S * ((F^T*X*G) / (F^T*F*S*G^T*G))^0.5
         let numer = f.t().dot(x).dot(g);
         let denom = f.t().dot(f).dot(&*s).dot(&g.t()).dot(g);
-        *s = sqrt_multiplicative_update(s, &numer, &denom, 1e-16);
+        *s = sqrt_multiplicative_update(s, &numer, &denom, 1e-10);
     }
 
     fn compute_criterion(
