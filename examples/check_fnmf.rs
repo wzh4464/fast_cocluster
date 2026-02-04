@@ -12,7 +12,13 @@ fn load_classic4() -> Result<(Array2<f64>, Vec<usize>), Box<dyn std::error::Erro
     let labels_path = "data/classic4_benchmark_small_labels.npy";
     let array: Array2<f64> = ndarray_npy::read_npy(data_path)?;
     let labels_array: ndarray::Array1<i64> = ndarray_npy::read_npy(labels_path)?;
-    let labels: Vec<usize> = labels_array.iter().map(|&x| x as usize).collect();
+    let labels: Vec<usize> = labels_array
+        .iter()
+        .map(|&x| {
+            assert!(x >= 0, "negative label found: {}", x);
+            x as usize
+        })
+        .collect();
     println!(
         "Loaded Classic4: {} x {}, {} labels",
         array.nrows(),
@@ -23,6 +29,7 @@ fn load_classic4() -> Result<(Array2<f64>, Vec<usize>), Box<dyn std::error::Erro
 }
 
 fn calculate_nmi(true_labels: &[usize], pred_labels: &[usize]) -> f64 {
+    assert_eq!(true_labels.len(), pred_labels.len(), "label length mismatch");
     let n = true_labels.len() as f64;
     let k_true = *true_labels.iter().max().unwrap_or(&0) + 1;
     let k_pred = *pred_labels.iter().max().unwrap_or(&0) + 1;
@@ -66,6 +73,7 @@ fn calculate_nmi(true_labels: &[usize], pred_labels: &[usize]) -> f64 {
 }
 
 fn calculate_ari(true_labels: &[usize], pred_labels: &[usize]) -> f64 {
+    assert_eq!(true_labels.len(), pred_labels.len(), "label length mismatch");
     let n = true_labels.len();
     let k_true = *true_labels.iter().max().unwrap_or(&0) + 1;
     let k_pred = *pred_labels.iter().max().unwrap_or(&0) + 1;
@@ -94,6 +102,7 @@ fn calculate_ari(true_labels: &[usize], pred_labels: &[usize]) -> f64 {
     let sum_comb_bj: i64 = (0..k_pred)
         .map(|j| comb2(contingency.iter().map(|r| r[j]).sum::<i64>()))
         .sum();
+    if n < 2 { return 0.0; }
     let comb_n = comb2(n as i64) as f64;
     let expected = (sum_comb_ai as f64) * (sum_comb_bj as f64) / comb_n;
     let max_idx = 0.5 * (sum_comb_ai as f64 + sum_comb_bj as f64);
