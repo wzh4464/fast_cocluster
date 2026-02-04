@@ -45,7 +45,7 @@ class NBVD:
 	def fit(self, X, y=None):
 
 		check_array(X, accept_sparse=True, dtype="numeric", order=None,
-		copy=False, force_all_finite=True, ensure_2d=True,
+		copy=False, ensure_all_finite=True, ensure_2d=True,
 		allow_nd=False, ensure_min_samples=self.n_row_clusters,
 		ensure_min_features=self.n_col_clusters, estimator=None)
 
@@ -100,17 +100,17 @@ class NBVD:
 				if isinstance(self.F_init, type(None)):
 					enum = X@G@S.T
 					denom = F@S@G.T@G@S.T
-					F = F * (enum/denom)
+					F = np.nan_to_num(F * (enum/(denom + 1e-10)))
 
 				if isinstance(self.G_init, type(None)):
 					enum = X.T@F@S
 					denom = G@S.T@F.T@F@S
-					G = G * (enum / denom)
+					G = np.nan_to_num(G * (enum / (denom + 1e-10)))
 
 				if isinstance(self.S_init, type(None)):
 					enum = F.T@X@G
 					denom = F.T@F@S@G.T@G
-					S = S * (enum / denom)
+					S = np.nan_to_num(S * (enum / (denom + 1e-10)))
 
 			DF = np.nan_to_num(np.diag(F.sum(axis=0)**-.5))
 			DG = np.nan_to_num(np.diag(G.sum(axis=0)**-.5)) #rank2*rank2

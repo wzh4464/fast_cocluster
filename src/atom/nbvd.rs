@@ -19,21 +19,21 @@ impl TriFactorUpdater for NbvdUpdater {
         // F ← F * (X*G*S^T) / (F*S*G^T*G*S^T)
         let numer = x.dot(g).dot(&s.t());
         let denom = f.dot(s).dot(&g.t()).dot(g).dot(&s.t());
-        *f = multiplicative_update(f, &numer, &denom, 1e-16);
+        *f = multiplicative_update(f, &numer, &denom, 1e-10);
     }
 
     fn update_g(&self, x: &Array2<f64>, f: &Array2<f64>, s: &Array2<f64>, g: &mut Array2<f64>) {
         // G ← G * (X^T*F*S) / (G*S^T*F^T*F*S)
         let numer = x.t().dot(f).dot(s);
         let denom = g.dot(&s.t()).dot(&f.t()).dot(f).dot(s);
-        *g = multiplicative_update(g, &numer, &denom, 1e-16);
+        *g = multiplicative_update(g, &numer, &denom, 1e-10);
     }
 
     fn update_s(&self, x: &Array2<f64>, f: &Array2<f64>, s: &mut Array2<f64>, g: &Array2<f64>) {
         // S ← S * (F^T*X*G) / (F^T*F*S*G^T*G)
         let numer = f.t().dot(x).dot(g);
         let denom = f.t().dot(f).dot(&*s).dot(&g.t()).dot(g);
-        *s = multiplicative_update(s, &numer, &denom, 1e-16);
+        *s = multiplicative_update(s, &numer, &denom, 1e-10);
     }
 
     fn compute_criterion(

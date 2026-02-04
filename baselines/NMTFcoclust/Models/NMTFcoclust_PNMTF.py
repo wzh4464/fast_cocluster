@@ -73,7 +73,7 @@ class PNMTF:
 	def fit(self, X, y=None):
 
 		check_array(X, accept_sparse=True, dtype="numeric", order=None,
-				copy=False, force_all_finite=True, ensure_2d=True,
+				copy=False, ensure_all_finite=True, ensure_2d=True,
 				allow_nd=False, ensure_min_samples=self.n_row_clusters,
 				ensure_min_features=self.n_col_clusters, estimator=None)
 		criterion = self.criterion
@@ -141,26 +141,26 @@ class PNMTF:
 				if isinstance(self.F_init, type(None)):
 					enum = X@G@S.T
 					denom = F@S@G.T@G@S.T + self.tau*F@P_g
-					F = F * ((enum/denom)**0.5)
+					F = np.nan_to_num(F * ((enum/(denom + 1e-10))**0.5))
 
 				if isinstance(self.G_init, type(None)):
 					enum = X.T@F@S
 					denom = G@S.T@F.T@F@S + self.eta*G@P_s
-					G = G * ((enum / denom)**0.5)
+					G = np.nan_to_num(G * ((enum / (denom + 1e-10))**0.5))
 				
 				if isinstance(self.S_init, type(None)):
 					enum = F.T@X@G
 					denom = F.T@F@S@G.T@G + self.gamma*S
-					S = S * ((enum / denom)**0.5)
+					S = np.nan_to_num(S * ((enum / (denom + 1e-10))**0.5))
 
 			DF = np.diagflat(F.sum(axis = 0))
 			DG = np.diagflat(G.sum(axis = 0))
 
 			#Normalization
 
-			F = F@np.diagflat(np.power(F.sum(axis = 0), -1))
+			F = F@np.nan_to_num(np.diagflat(np.power(F.sum(axis = 0) + 1e-10, -1)))
 			S = DF@S@DG
-			G = (np.diagflat(np.power(G.sum(axis = 0), -1))@G.T).T   #rank2*n
+			G = (np.nan_to_num(np.diagflat(np.power(G.sum(axis = 0) + 1e-10, -1)))@G.T).T   #rank2*n
 			soft_matrix = np.nan_to_num(F@S@G.T)
 			F_cluster = np.zeros_like(F)
 			F_cluster[np.arange(len(F)),np.argmax(F,axis=1)] = 1
