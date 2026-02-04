@@ -12,7 +12,6 @@
  * Date      		By   	Comments
  * ----------		------	---------------------------------------------------------
  */
-
 pub mod cocluster;
 pub mod matrix;
 pub mod pipeline;
@@ -21,8 +20,8 @@ pub mod spectral_cocluster;
 pub mod util;
 use cocluster::Coclusterer;
 
-pub mod union_dc;
 pub mod dimerge_co;
+pub mod union_dc;
 use std::collections::VecDeque;
 use std::thread;
 use std::time::Duration;
@@ -37,12 +36,12 @@ use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use union_dc::UnionDC;
 
-pub mod submatrix;
+pub mod atom;
 pub mod config;
+pub mod submatrix;
 
 pub fn run() {
     let configuration = new_config();
-    
 }
 
 fn new_config() -> config::Config {
