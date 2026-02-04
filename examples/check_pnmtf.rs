@@ -129,7 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let config = TriFactorConfig {
             n_row_clusters,
             n_col_clusters,
-            max_iter: 100,
+            max_iter: 50,
             n_init: 1,
             tol: 1e-9,
             seed: Some(seed),
