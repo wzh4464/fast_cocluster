@@ -156,7 +156,7 @@ fn make_config(k: usize) -> TriFactorConfig {
     TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
-        max_iter: 50,
+        max_iter: 20,  // Reduced for faster evaluation
         n_init: 1,
         tol: 1e-9,
         seed: None,
@@ -202,17 +202,19 @@ fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
 
     let matrix = Matrix::new(array.clone());
     let k = 4;
-    let num_threads = 4;
+    let num_threads = 16;
     let tp = 10;
-    let m_blocks = 2;
-    let n_blocks = 2;
+    // Use more blocks for larger datasets to reduce per-block computation
+    let (m_blocks, n_blocks) = if rows > 10000 || cols > 10000 {
+        (8, 8)  // RCV1-scale: ~2900x5900 per block
+    } else if rows > 2000 || cols > 2000 {
+        (4, 4)  // Classic4-paper scale
+    } else {
+        (2, 2)  // Small datasets
+    };
 
-    // ─── Standalone baselines ───────────────────────────────────────
-    println!("\n--- Standalone Local Clusterers ---");
-    println!("{:<12} {:>8} {:>8} {:>10} {:>8}", "Method", "NMI", "ARI", "Time(s)", "Clusters");
-    println!("{}", "-".repeat(50));
-
-    // Spectral
+    // --- Standalone Spectral baseline for comparison ---
+    println!("\n--- Standalone Baseline ---");
     {
         let start = Instant::now();
         let clusterer = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
@@ -220,85 +222,10 @@ fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
             Ok(subs) => {
                 let runtime = start.elapsed().as_secs_f64();
                 let pred = extract_labels(&subs, rows, k);
-                println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                    "spectral", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, subs.len());
+                println!("spectral(standalone): NMI={:.4}, ARI={:.4}, Time={:.1}s",
+                    calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime);
             }
-            Err(e) => println!("{:<12} ERROR: {}", "spectral", e),
-        }
-    }
-
-    // NBVD
-    {
-        let start = Instant::now();
-        let clusterer = NbvdClusterer::with_config(make_config(k));
-        match clusterer.cluster_local(&array) {
-            Ok(subs) => {
-                let runtime = start.elapsed().as_secs_f64();
-                let pred = extract_labels(&subs, rows, k);
-                println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                    "nbvd", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, subs.len());
-            }
-            Err(e) => println!("{:<12} ERROR: {}", "nbvd", e),
-        }
-    }
-
-    // ONM3F
-    {
-        let start = Instant::now();
-        let clusterer = Onm3fClusterer::with_config(make_config(k));
-        match clusterer.cluster_local(&array) {
-            Ok(subs) => {
-                let runtime = start.elapsed().as_secs_f64();
-                let pred = extract_labels(&subs, rows, k);
-                println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                    "onm3f", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, subs.len());
-            }
-            Err(e) => println!("{:<12} ERROR: {}", "onm3f", e),
-        }
-    }
-
-    // ONMTF
-    {
-        let start = Instant::now();
-        let clusterer = OnmtfClusterer::with_config(make_config(k));
-        match clusterer.cluster_local(&array) {
-            Ok(subs) => {
-                let runtime = start.elapsed().as_secs_f64();
-                let pred = extract_labels(&subs, rows, k);
-                println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                    "onmtf", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, subs.len());
-            }
-            Err(e) => println!("{:<12} ERROR: {}", "onmtf", e),
-        }
-    }
-
-    // PNMTF
-    {
-        let start = Instant::now();
-        let clusterer = PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1);
-        match clusterer.cluster_local(&array) {
-            Ok(subs) => {
-                let runtime = start.elapsed().as_secs_f64();
-                let pred = extract_labels(&subs, rows, k);
-                println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                    "pnmtf", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, subs.len());
-            }
-            Err(e) => println!("{:<12} ERROR: {}", "pnmtf", e),
-        }
-    }
-
-    // FNMF
-    {
-        let start = Instant::now();
-        let clusterer = FnmfClusterer::new(k, 50);
-        match clusterer.cluster_local(&array) {
-            Ok(subs) => {
-                let runtime = start.elapsed().as_secs_f64();
-                let pred = extract_labels(&subs, rows, k);
-                println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                    "fnmf", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, subs.len());
-            }
-            Err(e) => println!("{:<12} ERROR: {}", "fnmf", e),
+            Err(e) => println!("spectral(standalone) ERROR: {}", e),
         }
     }
 
@@ -361,41 +288,8 @@ fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
         }
     }
 
-    // DiMergeCo + ONMTF
-    {
-        let start = Instant::now();
-        let local = OnmtfClusterer::with_config(make_config(k));
-        match DiMergeCoClusterer::new(k, rows, 0.05, local, HierarchicalMergeConfig::default(), num_threads, tp, m_blocks, n_blocks) {
-            Ok(c) => match c.run(&matrix) {
-                Ok(result) => {
-                    let runtime = start.elapsed().as_secs_f64();
-                    let pred = extract_labels(&result.submatrices, rows, k);
-                    println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                        "onmtf", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, result.submatrices.len());
-                }
-                Err(e) => println!("{:<12} ERROR: {}", "onmtf", e),
-            },
-            Err(e) => println!("{:<12} ERROR: {}", "onmtf", e),
-        }
-    }
-
-    // DiMergeCo + PNMTF
-    {
-        let start = Instant::now();
-        let local = PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1);
-        match DiMergeCoClusterer::new(k, rows, 0.05, local, HierarchicalMergeConfig::default(), num_threads, tp, m_blocks, n_blocks) {
-            Ok(c) => match c.run(&matrix) {
-                Ok(result) => {
-                    let runtime = start.elapsed().as_secs_f64();
-                    let pred = extract_labels(&result.submatrices, rows, k);
-                    println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                        "pnmtf", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, result.submatrices.len());
-                }
-                Err(e) => println!("{:<12} ERROR: {}", "pnmtf", e),
-            },
-            Err(e) => println!("{:<12} ERROR: {}", "pnmtf", e),
-        }
-    }
+    // DiMergeCo + ONMTF - SKIPPED (too slow due to O(n²) intermediate matrices)
+    // DiMergeCo + PNMTF - SKIPPED (too slow due to O(n²) intermediate matrices)
 
     // DiMergeCo + FNMF
     {
@@ -428,34 +322,41 @@ fn main() {
     println!("Mode: {}", mode);
 
     match mode {
-        "train" => {
+        "classic4" | "c4" => {
+            evaluate_dataset(
+                "Classic4-paper",
+                "data/classic4_paper.npy",
+                "data/classic4_paper_labels.npy",
+            );
+        }
+        "classic4-small" | "c4s" => {
+            evaluate_dataset(
+                "Classic4-small",
+                "data/classic4_benchmark_small.npy",
+                "data/classic4_benchmark_small_labels.npy",
+            );
+        }
+        "rcv1" | "train" => {
             evaluate_dataset(
                 "RCV1-train",
                 "data/rcv1/rcv1_train.npy",
                 "data/rcv1/rcv1_train_labels.npy",
-            );
-        }
-        "test" => {
-            evaluate_dataset(
-                "RCV1-test",
-                "data/rcv1/rcv1_test.npy",
-                "data/rcv1/rcv1_test_labels.npy",
             );
         }
         "all" => {
             evaluate_dataset(
+                "Classic4-paper",
+                "data/classic4_paper.npy",
+                "data/classic4_paper_labels.npy",
+            );
+            evaluate_dataset(
                 "RCV1-train",
                 "data/rcv1/rcv1_train.npy",
                 "data/rcv1/rcv1_train_labels.npy",
             );
-            evaluate_dataset(
-                "RCV1-test",
-                "data/rcv1/rcv1_test.npy",
-                "data/rcv1/rcv1_test_labels.npy",
-            );
         }
         _ => {
-            println!("Usage: evaluate_dimerge_atom [train|test|all]");
+            println!("Usage: evaluate_dimerge_atom [classic4|c4|classic4-small|c4s|rcv1|all]");
         }
     }
 
