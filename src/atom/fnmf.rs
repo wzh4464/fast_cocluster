@@ -25,11 +25,27 @@ pub struct FnmfClusterer {
 }
 
 impl FnmfClusterer {
-    pub fn new(n_row_clusters: usize, n_col_clusters: usize) -> Self {
+    /// Create a new FNMF clusterer.
+    ///
+    /// # Arguments
+    /// * `k` - Number of clusters (used for both rows and columns, as in standard NMF)
+    /// * `max_iter` - Maximum number of ANLS iterations
+    pub fn new(k: usize, max_iter: usize) -> Self {
+        Self {
+            n_row_clusters: k,
+            n_col_clusters: k,
+            max_iter,
+            n_init: 1,
+            seed: None,
+        }
+    }
+
+    /// Create with separate row and column cluster counts (for asymmetric co-clustering)
+    pub fn with_clusters(n_row_clusters: usize, n_col_clusters: usize, max_iter: usize) -> Self {
         Self {
             n_row_clusters,
             n_col_clusters,
-            max_iter: 50,
+            max_iter,
             n_init: 1,
             seed: None,
         }
