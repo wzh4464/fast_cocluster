@@ -17,22 +17,28 @@ pub struct Onm3fUpdater;
 impl TriFactorUpdater for Onm3fUpdater {
     fn update_f(&self, x: &Array2<f64>, f: &mut Array2<f64>, s: &Array2<f64>, g: &Array2<f64>) {
         // F ← F * ((X*G*S^T) / (F*F^T*X*G*S^T))^0.5
-        let xgs = x.dot(g).dot(&s.t());
-        let denom = f.dot(&f.t()).dot(&xgs);
+        // Optimized: F*F^T*numer = F*(F^T*numer) to avoid m×m intermediate
+        let xgs = x.dot(g).dot(&s.t()); // m×k
+        let ft_xgs = f.t().dot(&xgs); // k×k
+        let denom = f.dot(&ft_xgs); // m×k (no m×m intermediate!)
         *f = sqrt_multiplicative_update(f, &xgs, &denom, 1e-10);
     }
 
     fn update_g(&self, x: &Array2<f64>, f: &Array2<f64>, s: &Array2<f64>, g: &mut Array2<f64>) {
         // G ← G * ((X^T*F*S) / (G*G^T*X^T*F*S))^0.5
-        let xtfs = x.t().dot(f).dot(s);
-        let denom = g.dot(&g.t()).dot(&xtfs);
+        // Optimized: G*G^T*numer = G*(G^T*numer) to avoid n×n intermediate
+        let xtfs = x.t().dot(f).dot(s); // n×k
+        let gt_xtfs = g.t().dot(&xtfs); // k×k
+        let denom = g.dot(&gt_xtfs); // n×k (no n×n intermediate!)
         *g = sqrt_multiplicative_update(g, &xtfs, &denom, 1e-10);
     }
 
     fn update_s(&self, x: &Array2<f64>, f: &Array2<f64>, s: &mut Array2<f64>, g: &Array2<f64>) {
         // S ← S * ((F^T*X*G) / (F^T*F*S*G^T*G))^0.5
-        let numer = f.t().dot(x).dot(g);
-        let denom = f.t().dot(f).dot(&*s).dot(&g.t()).dot(g);
+        let ftf = f.t().dot(f); // k×k
+        let gtg = g.t().dot(g); // k×k
+        let numer = f.t().dot(x).dot(g); // k×k
+        let denom = ftf.dot(&*s).dot(&gtg); // k×k
         *s = sqrt_multiplicative_update(s, &numer, &denom, 1e-10);
     }
 
