@@ -194,7 +194,7 @@ impl Default for HierarchicalMergeConfig {
             merge_strategy: MergeStrategy::Adaptive,
             merge_threshold: 0.5,
             rescore_merged: true,
-            parallel_level: 4,
+            parallel_level: 10,  // increased for better parallelism with many partitions
         }
     }
 }
@@ -476,7 +476,7 @@ mod tests {
         }
         assert_eq!(config.merge_threshold, 0.5);
         assert_eq!(config.rescore_merged, true);
-        assert_eq!(config.parallel_level, 4);
+        assert_eq!(config.parallel_level, 10);
     }
 
     #[test]

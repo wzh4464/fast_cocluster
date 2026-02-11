@@ -25,7 +25,9 @@ use crate::matrix::Matrix;
 use crate::scoring::Scorer;
 use crate::submatrix::Submatrix;
 use rayon::prelude::*;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 /// Hierarchical merger using binary tree structure
 pub struct HierarchicalMerger {
@@ -157,66 +159,86 @@ impl HierarchicalMerger {
     }
 
     /// Union merge: combine all clusters, remove duplicates
+    /// Optimized with parallel signature computation
     fn merge_union<'a>(
         &self,
         left_clusters: &[Submatrix<'a, f64>],
         right_clusters: &[Submatrix<'a, f64>],
     ) -> Result<(Vec<Submatrix<'a, f64>>, f64), MergeError> {
-        let mut merged = Vec::new();
-        let mut seen_signatures = HashSet::new();
+        // Parallel compute signatures for all clusters
+        let left_sigs: Vec<u64> = left_clusters
+            .par_iter()
+            .map(|c| self.cluster_signature_hash(c))
+            .collect();
+
+        let right_sigs: Vec<u64> = right_clusters
+            .par_iter()
+            .map(|c| self.cluster_signature_hash(c))
+            .collect();
+
+        // Build result with deduplication
+        let mut seen_signatures: HashSet<u64> = HashSet::with_capacity(left_clusters.len() + right_clusters.len());
+        let mut merged: Vec<Submatrix<'a, f64>> = Vec::with_capacity(left_clusters.len() + right_clusters.len());
 
         // Add all left clusters
-        for cluster in left_clusters {
-            let sig = self.cluster_signature(cluster);
-            if seen_signatures.insert(sig) {
+        for (cluster, sig) in left_clusters.iter().zip(left_sigs.iter()) {
+            if seen_signatures.insert(*sig) {
                 merged.push(cluster.clone());
             }
         }
 
         // Add non-duplicate right clusters
-        for cluster in right_clusters {
-            let sig = self.cluster_signature(cluster);
-            if seen_signatures.insert(sig) {
+        for (cluster, sig) in right_clusters.iter().zip(right_sigs.iter()) {
+            if seen_signatures.insert(*sig) {
                 merged.push(cluster.clone());
             }
         }
 
-        let score = (merged.len() as f64) / (left_clusters.len() + right_clusters.len()) as f64;
+        let total = left_clusters.len() + right_clusters.len();
+        let score = if total > 0 { merged.len() as f64 / total as f64 } else { 0.0 };
         Ok((merged, score))
     }
 
     /// Intersection merge: keep only overlapping clusters
+    /// Optimized with parallel comparison of cluster pairs
     fn merge_intersection<'a>(
         &self,
         left_clusters: &[Submatrix<'a, f64>],
         right_clusters: &[Submatrix<'a, f64>],
         overlap_threshold: f64,
     ) -> Result<(Vec<Submatrix<'a, f64>>, f64), MergeError> {
-        let mut merged = Vec::new();
-        let mut total_overlap = 0.0;
-        let mut num_comparisons = 0;
+        let num_comparisons = left_clusters.len() * right_clusters.len();
 
-        for left_cluster in left_clusters {
-            for right_cluster in right_clusters {
-                let overlap = self.compute_overlap(left_cluster, right_cluster);
-                num_comparisons += 1;
-                total_overlap += overlap;
-
-                if overlap >= overlap_threshold {
-                    // Merge overlapping clusters by taking their union
-                    if let Some(union_cluster) = self.compute_union_cluster(left_cluster, right_cluster) {
-                        merged.push(union_cluster);
-                    }
-                }
-            }
+        if num_comparisons == 0 {
+            return Ok((Vec::new(), 0.0));
         }
 
-        let score = if num_comparisons > 0 {
-            total_overlap / num_comparisons as f64
-        } else {
-            0.0
-        };
+        // Parallel: compute all overlaps and collect matching pairs
+        let results: Vec<(Option<Submatrix<'a, f64>>, f64)> = left_clusters
+            .par_iter()
+            .flat_map(|left_cluster| {
+                right_clusters
+                    .par_iter()
+                    .map(move |right_cluster| {
+                        let overlap = self.compute_overlap(left_cluster, right_cluster);
+                        if overlap >= overlap_threshold {
+                            (self.compute_union_cluster(left_cluster, right_cluster), overlap)
+                        } else {
+                            (None, overlap)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
 
+        // Aggregate results
+        let total_overlap: f64 = results.iter().map(|(_, o)| o).sum();
+        let merged: Vec<Submatrix<'a, f64>> = results
+            .into_iter()
+            .filter_map(|(cluster, _)| cluster)
+            .collect();
+
+        let score = total_overlap / num_comparisons as f64;
         Ok((merged, score))
     }
 
@@ -258,12 +280,21 @@ impl HierarchicalMerger {
         }
     }
 
-    /// Compute a signature for cluster deduplication
+    /// Compute a signature for cluster deduplication (legacy, returns cloned vecs)
     fn cluster_signature(&self, cluster: &Submatrix<f64>) -> (Vec<usize>, Vec<usize>) {
         (
             cluster.row_indices.clone(),
             cluster.col_indices.clone(),
         )
+    }
+
+    /// Compute a lightweight hash signature for cluster deduplication
+    /// Much faster than cloning full index vectors
+    fn cluster_signature_hash(&self, cluster: &Submatrix<f64>) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        cluster.row_indices.hash(&mut hasher);
+        cluster.col_indices.hash(&mut hasher);
+        hasher.finish()
     }
 
     /// Compute overlap between two clusters (Jaccard index)
