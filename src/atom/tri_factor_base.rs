@@ -5,6 +5,7 @@ use ndarray_rand::rand::rngs::StdRng;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
+use rayon::prelude::*;
 
 use crate::submatrix::Submatrix;
 
@@ -94,22 +95,23 @@ pub fn run_tri_factorization(
         let mut s = Array2::random_using((k, l), Uniform::new(0.0, 1.0), &mut rng);
         let mut g = Array2::random_using((m, l), Uniform::new(0.0, 1.0), &mut rng);
 
-        let mut prev_criterion = f64::INFINITY;
+        let mut prev_criterion = f64::NEG_INFINITY;
 
-        // Single convergence loop: update F, G, S once per iteration
-        // Then normalize and check convergence
-        for _iter in 0..config.max_iter {
-            // Update F, G, S
-            updater.update_f(x, &mut f, &s, &g);
-            updater.update_g(x, &f, &s, &mut g);
-            updater.update_s(x, &f, &mut s, &g);
+        // Outer convergence loop (matching Python NMTFcoclust)
+        for _outer in 0..config.max_iter {
+            // Inner update loop: max_iter steps of F, G, S updates (no normalization)
+            for _inner in 0..config.max_iter {
+                updater.update_f(x, &mut f, &s, &g);
+                updater.update_g(x, &f, &s, &mut g);
+                updater.update_s(x, &f, &mut s, &g);
+            }
 
-            // Normalize
+            // Normalize after inner loop
             updater.normalize(x, &mut f, &mut s, &mut g);
 
             // Check convergence
             let criterion = updater.compute_criterion(x, &f, &s, &g);
-            if (prev_criterion - criterion).abs() <= config.tol {
+            if (criterion - prev_criterion).abs() <= config.tol {
                 break;
             }
             prev_criterion = criterion;
@@ -136,20 +138,39 @@ pub fn run_tri_factorization(
     }
 }
 
-/// Compute argmax along axis 1 for each row
+/// Compute argmax along axis 1 for each row (parallel for large matrices)
 fn argmax_axis1(a: &Array2<f64>) -> Vec<usize> {
-    a.axis_iter(Axis(0))
-        .map(|row| {
-            row.iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(idx, _)| idx)
-                .unwrap_or(0)
-        })
-        .collect()
+    let n_rows = a.nrows();
+
+    if n_rows > 1000 {
+        // Parallel for large matrices
+        (0..n_rows)
+            .into_par_iter()
+            .map(|i| {
+                let row = a.row(i);
+                row.iter()
+                    .enumerate()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .map(|(idx, _)| idx)
+                    .unwrap_or(0)
+            })
+            .collect()
+    } else {
+        // Sequential for small matrices
+        a.axis_iter(Axis(0))
+            .map(|row| {
+                row.iter()
+                    .enumerate()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .map(|(idx, _)| idx)
+                    .unwrap_or(0)
+            })
+            .collect()
+    }
 }
 
 /// Build Submatrix instances from row/col cluster labels
+/// Optimized: precompute cluster membership, parallel for many clusters
 pub fn build_submatrices_from_labels<'a>(
     matrix: &'a Array2<f64>,
     row_labels: &[usize],
@@ -157,32 +178,57 @@ pub fn build_submatrices_from_labels<'a>(
     n_row_clusters: usize,
     n_col_clusters: usize,
 ) -> Vec<Submatrix<'a, f64>> {
-    let mut submatrices = Vec::new();
+    // Precompute cluster membership (O(n) instead of O(n*k) per cluster)
+    let mut row_clusters: Vec<Vec<usize>> = vec![Vec::new(); n_row_clusters];
+    let mut col_clusters: Vec<Vec<usize>> = vec![Vec::new(); n_col_clusters];
 
-    for rc in 0..n_row_clusters {
-        for cc in 0..n_col_clusters {
-            let rows: Vec<usize> = row_labels
-                .iter()
-                .enumerate()
-                .filter(|(_, &label)| label == rc)
-                .map(|(idx, _)| idx)
-                .collect();
-            let cols: Vec<usize> = col_labels
-                .iter()
-                .enumerate()
-                .filter(|(_, &label)| label == cc)
-                .map(|(idx, _)| idx)
-                .collect();
-
-            if rows.is_empty() || cols.is_empty() {
-                continue;
-            }
-
-            if let Some(sub) = Submatrix::from_indices(matrix, &rows, &cols) {
-                submatrices.push(sub);
-            }
+    for (idx, &label) in row_labels.iter().enumerate() {
+        if label < n_row_clusters {
+            row_clusters[label].push(idx);
+        }
+    }
+    for (idx, &label) in col_labels.iter().enumerate() {
+        if label < n_col_clusters {
+            col_clusters[label].push(idx);
         }
     }
 
-    submatrices
+    // Build submatrices (parallel if many clusters)
+    let n_total = n_row_clusters * n_col_clusters;
+
+    if n_total > 16 {
+        // Parallel for many clusters
+        (0..n_row_clusters)
+            .into_par_iter()
+            .flat_map(|rc| {
+                (0..n_col_clusters)
+                    .filter_map(|cc| {
+                        let rows = &row_clusters[rc];
+                        let cols = &col_clusters[cc];
+                        if rows.is_empty() || cols.is_empty() {
+                            None
+                        } else {
+                            Submatrix::from_indices(matrix, rows, cols)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    } else {
+        // Sequential for few clusters
+        let mut submatrices = Vec::with_capacity(n_total);
+        for rc in 0..n_row_clusters {
+            for cc in 0..n_col_clusters {
+                let rows = &row_clusters[rc];
+                let cols = &col_clusters[cc];
+                if rows.is_empty() || cols.is_empty() {
+                    continue;
+                }
+                if let Some(sub) = Submatrix::from_indices(matrix, rows, cols) {
+                    submatrices.push(sub);
+                }
+            }
+        }
+        submatrices
+    }
 }
