@@ -25,11 +25,27 @@ pub struct FnmfClusterer {
 }
 
 impl FnmfClusterer {
-    pub fn new(n_row_clusters: usize, n_col_clusters: usize) -> Self {
+    /// Create a new FNMF clusterer.
+    ///
+    /// # Arguments
+    /// * `k` - Number of clusters (used for both rows and columns, as in standard NMF)
+    /// * `max_iter` - Maximum number of ANLS iterations
+    pub fn new(k: usize, max_iter: usize) -> Self {
+        Self {
+            n_row_clusters: k,
+            n_col_clusters: k,
+            max_iter,
+            n_init: 1,
+            seed: None,
+        }
+    }
+
+    /// Create with separate row and column cluster counts (for asymmetric co-clustering)
+    pub fn with_clusters(n_row_clusters: usize, n_col_clusters: usize, max_iter: usize) -> Self {
         Self {
             n_row_clusters,
             n_col_clusters,
-            max_iter: 50,
+            max_iter,
             n_init: 1,
             seed: None,
         }
@@ -46,6 +62,9 @@ impl FnmfClusterer {
         let mut w = Array2::random_using((m, k), Uniform::new(0.0, 1.0), &mut rng);
         let mut h = Array2::random_using((n, k), Uniform::new(0.0, 1.0), &mut rng);
 
+        // Precompute X^T once (avoid recomputing in each iteration)
+        let x_t = x.t().to_owned();
+
         for _iter in 0..self.max_iter {
             // Solve for H: min ||W * H^T - X||  → min ||W * Z - X|| where Z = H^T
             // NNLS: min ||W * Z - X|| s.t. Z >= 0, solved column by column of X
@@ -54,7 +73,7 @@ impl FnmfClusterer {
             h = result_h.x.t().to_owned();
 
             // Solve for W: min ||H * W^T - X^T||
-            let result_w = nnlsm_blockpivot(&h, &x.t().to_owned(), Some(&w.t().to_owned()));
+            let result_w = nnlsm_blockpivot(&h, &x_t, Some(&w.t().to_owned()));
             w = result_w.x.t().to_owned();
         }
 
