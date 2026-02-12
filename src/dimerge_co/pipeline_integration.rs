@@ -78,22 +78,63 @@ impl<C: Clusterer> LocalClusterer for ClustererAdapter<C> {
 ///
 /// This creates a new Matrix containing only the rows/cols specified by the partition.
 /// Used when we need to materialize partition data for local clustering.
+/// Optimized: uses row-wise copying instead of element-wise for better cache efficiency.
 pub fn extract_partition_matrix(
     matrix: &Array2<f64>,
     partition: &Partition,
 ) -> Array2<f64> {
+    use ndarray::Axis;
+
     let n_rows = partition.row_indices.len();
     let n_cols = partition.col_indices.len();
 
+    // Optimization: extract rows first, then select columns
+    // This is more cache-friendly than element-wise access
     let mut result = Array2::zeros((n_rows, n_cols));
 
     for (i, &row_idx) in partition.row_indices.iter().enumerate() {
+        let row = matrix.row(row_idx);
         for (j, &col_idx) in partition.col_indices.iter().enumerate() {
-            result[[i, j]] = matrix[[row_idx, col_idx]];
+            result[[i, j]] = row[col_idx];
         }
     }
 
     result
+}
+
+/// Parallel version of extract_partition_matrix for large partitions
+/// Uses rayon to parallelize row extraction
+pub fn extract_partition_matrix_parallel(
+    matrix: &Array2<f64>,
+    partition: &Partition,
+) -> Array2<f64> {
+    use rayon::prelude::*;
+
+    let n_rows = partition.row_indices.len();
+    let n_cols = partition.col_indices.len();
+
+    // Threshold for using parallel extraction
+    const PARALLEL_THRESHOLD: usize = 1000;
+
+    if n_rows * n_cols < PARALLEL_THRESHOLD {
+        return extract_partition_matrix(matrix, partition);
+    }
+
+    // Parallel: extract each row independently
+    let rows: Vec<Vec<f64>> = partition.row_indices
+        .par_iter()
+        .map(|&row_idx| {
+            let row = matrix.row(row_idx);
+            partition.col_indices
+                .iter()
+                .map(|&col_idx| row[col_idx])
+                .collect()
+        })
+        .collect();
+
+    // Assemble into Array2
+    let flat: Vec<f64> = rows.into_iter().flatten().collect();
+    Array2::from_shape_vec((n_rows, n_cols), flat).unwrap()
 }
 
 /// Improved local clustering that works with partition indices
@@ -118,8 +159,8 @@ pub fn cluster_partitions_parallel<'a, L: LocalClusterer>(
         .par_iter()
         .enumerate()
         .map(|(i, partition)| -> Result<Vec<Submatrix<'a, f64>>, Box<dyn Error + Send + Sync>> {
-            // Extract partition data
-            let partition_matrix = extract_partition_matrix(original_matrix, partition);
+            // Extract partition data (uses parallel extraction for large partitions)
+            let partition_matrix = extract_partition_matrix_parallel(original_matrix, partition);
             log::info!(
                 "  Partition {}/{}: {}×{}, 开始本地聚类...",
                 i + 1, partitions.len(),
@@ -137,27 +178,48 @@ pub fn cluster_partitions_parallel<'a, L: LocalClusterer>(
                 cluster_start.elapsed().as_millis()
             );
 
-            // Map back to original matrix indices
-            let mapped: Vec<Submatrix<'a, f64>> = local_clusters
-                .into_iter()
-                .filter_map(|sub| {
-                    // Translate local partition indices to global matrix indices
-                    let global_rows: Vec<usize> = sub
-                        .row_indices
-                        .iter()
-                        .map(|&local_idx| partition.row_indices[local_idx])
-                        .collect();
+            // Map back to original matrix indices (parallel for many clusters)
+            let mapped: Vec<Submatrix<'a, f64>> = if local_clusters.len() > 100 {
+                // Parallel mapping for many clusters
+                local_clusters
+                    .into_par_iter()
+                    .filter_map(|sub| {
+                        let global_rows: Vec<usize> = sub
+                            .row_indices
+                            .iter()
+                            .map(|&local_idx| partition.row_indices[local_idx])
+                            .collect();
 
-                    let global_cols: Vec<usize> = sub
-                        .col_indices
-                        .iter()
-                        .map(|&local_idx| partition.col_indices[local_idx])
-                        .collect();
+                        let global_cols: Vec<usize> = sub
+                            .col_indices
+                            .iter()
+                            .map(|&local_idx| partition.col_indices[local_idx])
+                            .collect();
 
-                    // Create submatrix referencing original matrix
-                    Submatrix::from_indices(original_matrix, &global_rows, &global_cols)
-                })
-                .collect();
+                        Submatrix::from_indices(original_matrix, &global_rows, &global_cols)
+                    })
+                    .collect()
+            } else {
+                // Sequential for few clusters
+                local_clusters
+                    .into_iter()
+                    .filter_map(|sub| {
+                        let global_rows: Vec<usize> = sub
+                            .row_indices
+                            .iter()
+                            .map(|&local_idx| partition.row_indices[local_idx])
+                            .collect();
+
+                        let global_cols: Vec<usize> = sub
+                            .col_indices
+                            .iter()
+                            .map(|&local_idx| partition.col_indices[local_idx])
+                            .collect();
+
+                        Submatrix::from_indices(original_matrix, &global_rows, &global_cols)
+                    })
+                    .collect()
+            };
 
             Ok(mapped)
         })
