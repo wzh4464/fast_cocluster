@@ -94,23 +94,22 @@ pub fn run_tri_factorization(
         let mut s = Array2::random_using((k, l), Uniform::new(0.0, 1.0), &mut rng);
         let mut g = Array2::random_using((m, l), Uniform::new(0.0, 1.0), &mut rng);
 
-        let mut prev_criterion = f64::NEG_INFINITY;
+        let mut prev_criterion = f64::INFINITY;
 
-        // Outer convergence loop (bounded by max_iter, matching Python)
-        for _outer in 0..config.max_iter {
-            // Inner update loop: max_iter steps of F, G, S updates
-            for _inner in 0..config.max_iter {
-                updater.update_f(x, &mut f, &s, &g);
-                updater.update_g(x, &f, &s, &mut g);
-                updater.update_s(x, &f, &mut s, &g);
-            }
+        // Single convergence loop: update F, G, S once per iteration
+        // Then normalize and check convergence
+        for _iter in 0..config.max_iter {
+            // Update F, G, S
+            updater.update_f(x, &mut f, &s, &g);
+            updater.update_g(x, &f, &s, &mut g);
+            updater.update_s(x, &f, &mut s, &g);
 
-            // Normalize after inner loop
+            // Normalize
             updater.normalize(x, &mut f, &mut s, &mut g);
 
             // Check convergence
             let criterion = updater.compute_criterion(x, &f, &s, &g);
-            if (criterion - prev_criterion).abs() <= config.tol {
+            if (prev_criterion - criterion).abs() <= config.tol {
                 break;
             }
             prev_criterion = criterion;
