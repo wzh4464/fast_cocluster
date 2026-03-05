@@ -53,7 +53,7 @@ fn main() {
         println!("  Non-zeros: {} ({:.2}% density)", nnz, density * 100.0);
         println!("  Memory: {:.1} MB", (rows * cols * 8) as f64 / 1e6);
 
-        run_benchmark(&matrix, k);
+        run_benchmark(matrix, k);
     }
 
     println!("\n======================================================================");
@@ -73,15 +73,15 @@ fn make_config(k: usize) -> TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 20,
-        n_init: 1,
+        n_init: 3,
         tol: 1e-9,
         seed: None,
     }
 }
 
-fn run_benchmark(array: &Array2<f64>, k: usize) {
-    let rows = array.nrows();
-    let matrix = Matrix::new(array.clone());
+fn run_benchmark(array: Array2<f64>, k: usize) {
+    let matrix = Matrix::new(array);
+    let rows = matrix.rows;
     let num_threads = 16;
 
     // DiMergeCo config - adaptive based on matrix size
@@ -98,7 +98,7 @@ fn run_benchmark(array: &Array2<f64>, k: usize) {
             "spectral",
             || ClustererAdapter::new(SVDClusterer::new(k, 0.1)),
             || ClustererAdapter::new(SVDClusterer::new(k, 0.1)),
-            array,
+            &matrix.data,
             &matrix,
             rows,
             k,
@@ -116,7 +116,7 @@ fn run_benchmark(array: &Array2<f64>, k: usize) {
             "nbvd",
             || NbvdClusterer::with_config(make_config(k)),
             || NbvdClusterer::with_config(make_config(k)),
-            array,
+            &matrix.data,
             &matrix,
             rows,
             k,
@@ -134,7 +134,7 @@ fn run_benchmark(array: &Array2<f64>, k: usize) {
             "onm3f",
             || Onm3fClusterer::with_config(make_config(k)),
             || Onm3fClusterer::with_config(make_config(k)),
-            array,
+            &matrix.data,
             &matrix,
             rows,
             k,
@@ -152,7 +152,7 @@ fn run_benchmark(array: &Array2<f64>, k: usize) {
             "pnmtf",
             || PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1),
             || PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1),
-            array,
+            &matrix.data,
             &matrix,
             rows,
             k,

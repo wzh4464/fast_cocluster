@@ -58,13 +58,13 @@ fn main() {
     let (rows, cols) = (array.nrows(), array.ncols());
     println!("RCV1-train: {} x {}", rows, cols);
     
-    let matrix = Matrix::new(array.clone());
+    let matrix = Matrix::new(array);
     let k = 4;
-    
+
     // Test DiMergeCo + FNMF
     println!("\n--- DiMergeCo + FNMF ---");
     let start = Instant::now();
-    let local = FnmfClusterer::new(k, 50);
+    let local = FnmfClusterer::new(k, k);
     match DiMergeCoClusterer::new(k, rows, 0.05, local, HierarchicalMergeConfig::default(), 16, 10, 8, 8) {
         Ok(c) => match c.run(&matrix) {
             Ok(result) => {
@@ -81,9 +81,9 @@ fn main() {
     // Also test standalone FNMF on the full matrix for comparison
     println!("\n--- Standalone FNMF (full matrix) ---");
     let start = Instant::now();
-    let clusterer = FnmfClusterer::new(k, 50);
+    let clusterer = FnmfClusterer::new(k, k);
     use fast_cocluster::dimerge_co::parallel_coclusterer::LocalClusterer;
-    match clusterer.cluster_local(&array) {
+    match clusterer.cluster_local(&matrix.data) {
         Ok(subs) => {
             let runtime = start.elapsed().as_secs_f64();
             let pred = extract_labels(&subs, rows, k);

@@ -88,7 +88,7 @@ fn make_config(k: usize) -> TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 20,
-        n_init: 1,
+        n_init: 3,
         tol: 1e-9,
         seed: None,
     }
@@ -105,7 +105,7 @@ fn main() {
     let (rows, cols) = (array.nrows(), array.ncols());
     println!("RCV1-test: {} x {} ({:.2} GB)", rows, cols, (rows * cols * 8) as f64 / 1e9);
 
-    let matrix = Matrix::new(array.clone());
+    let matrix = Matrix::new(array);
     let k = 4;
     let num_threads = 16;
     let tp = 10;
@@ -121,7 +121,7 @@ fn main() {
         // Standalone
         let start = Instant::now();
         let clusterer = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
@@ -160,7 +160,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = NbvdClusterer::with_config(make_config(k));
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
@@ -198,7 +198,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = Onm3fClusterer::with_config(make_config(k));
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
@@ -236,7 +236,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1);
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
@@ -273,8 +273,8 @@ fn main() {
     // FNMF
     {
         let start = Instant::now();
-        let clusterer = FnmfClusterer::new(k, 50);
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let clusterer = FnmfClusterer::new(k, k);
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
@@ -283,7 +283,7 @@ fn main() {
         };
 
         let start = Instant::now();
-        let local = FnmfClusterer::new(k, 50);
+        let local = FnmfClusterer::new(k, k);
         let dimerge_result = match DiMergeCoClusterer::new(k, rows, 0.05, local, HierarchicalMergeConfig::default(), num_threads, tp, m_blocks, n_blocks) {
             Ok(c) => match c.run(&matrix) {
                 Ok(result) => {

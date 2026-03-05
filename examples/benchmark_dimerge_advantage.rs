@@ -68,8 +68,8 @@ fn main() {
 
     for &(nrows, ncols, label) in &sizes {
         let array = full_array.slice(ndarray::s![..nrows, ..ncols]).to_owned();
-        let matrix = Matrix::new(array.clone());
-        let nnz = array.iter().filter(|&&x| x > 0.0).count();
+        let matrix = Matrix::new(array);
+        let nnz = matrix.data.iter().filter(|&&x| x > 0.0).count();
         let density = nnz as f64 / (nrows * ncols) as f64;
 
         // Choose grid and T_p based on matrix size
@@ -92,37 +92,37 @@ fn main() {
         run_comparison("NBVD",
             || NbvdClusterer::with_config(make_config(k)),
             || NbvdClusterer::with_config(make_config(k)),
-            &array, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
+            &matrix.data, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
 
         // ONM3F
         run_comparison("ONM3F",
             || Onm3fClusterer::with_config(make_config(k)),
             || Onm3fClusterer::with_config(make_config(k)),
-            &array, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
+            &matrix.data, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
 
         // ONMTF
         run_comparison("ONMTF",
             || OnmtfClusterer::with_config(make_config(k)),
             || OnmtfClusterer::with_config(make_config(k)),
-            &array, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
+            &matrix.data, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
 
         // PNMTF
         run_comparison("PNMTF",
             || PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1),
             || PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1),
-            &array, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
+            &matrix.data, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
 
         // FNMF
         run_comparison("FNMF",
             || FnmfClusterer::with_clusters(k, k, 10),
             || FnmfClusterer::with_clusters(k, k, 10),
-            &array, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
+            &matrix.data, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
 
         // Spectral
         run_comparison("Spectral",
             || ClustererAdapter::new(SVDClusterer::new(k, 0.1)),
             || ClustererAdapter::new(SVDClusterer::new(k, 0.1)),
-            &array, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
+            &matrix.data, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
 
         println!("{}\n", "-".repeat(68));
     }
@@ -136,14 +136,14 @@ fn main() {
 
     let (nrows, ncols) = (50_000, 20_000);
     let array = full_array.slice(ndarray::s![..nrows, ..ncols]).to_owned();
-    let matrix = Matrix::new(array.clone());
+    let matrix = Matrix::new(array);
     let (tp, m_blocks, n_blocks) = grid_config(nrows, ncols);
 
     // Standalone baseline
     println!("Standalone baseline (single-threaded BLAS)...");
     let start = Instant::now();
     let clusterer = NbvdClusterer::with_config(make_config(k));
-    let standalone_time = match clusterer.cluster_local(&array) {
+    let standalone_time = match clusterer.cluster_local(&matrix.data) {
         Ok(_) => start.elapsed().as_secs_f64(),
         Err(e) => { println!("  FAIL: {}", e); return; }
     };
@@ -262,7 +262,7 @@ fn make_config(k: usize) -> TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 10,
-        n_init: 1,
+        n_init: 3,
         tol: 1e-6,
         seed: Some(42),
     }

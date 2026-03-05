@@ -5,14 +5,12 @@
 /// - NBVD, ONM3F, ONMTF, PNMTF, FNMF (atom NMF methods)
 ///
 /// Usage:
-///   cargo run --release --example evaluate_dimerge_atom -- [train|test|all]
+///   cargo run --release --example evaluate_dimerge_atom -- [classic4|c4|classic4-small|c4s|rcv1|all]
 
 use fast_cocluster::atom::{
     fnmf::FnmfClusterer,
     nbvd::NbvdClusterer,
     onm3f::Onm3fClusterer,
-    onmtf::OnmtfClusterer,
-    pnmtf::PnmtfClusterer,
     tri_factor_base::TriFactorConfig,
 };
 use fast_cocluster::dimerge_co::parallel_coclusterer::LocalClusterer;
@@ -145,10 +143,16 @@ fn extract_labels(submatrices: &[Submatrix<'_, f64>], n_rows: usize, k: usize) -
         }
     }
     let dataset = DatasetBase::from(membership);
-    let model = KMeans::params(k)
-        .max_n_iterations(300)
+    let model = match KMeans::params(k)
+        .max_n_iterations(200)
         .fit(&dataset)
-        .expect("K-means failed");
+    {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("K-means failed: {}; falling back to all-zeros labels", e);
+            return vec![0; n_rows];
+        }
+    };
     model.predict(dataset).targets.to_vec()
 }
 
@@ -157,13 +161,52 @@ fn make_config(k: usize) -> TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 20,  // Reduced for faster evaluation
-        n_init: 1,
+        n_init: 3,
         tol: 1e-9,
         seed: None,
     }
 }
 
+/// Run a single DiMergeCo benchmark with the given local clusterer and print results.
+fn run_dimerge_benchmark(
+    method_name: &str,
+    local: impl LocalClusterer,
+    k: usize,
+    n_rows: usize,
+    delta: f64,
+    num_threads: usize,
+    tp: usize,
+    m_blocks: usize,
+    n_blocks: usize,
+    matrix: &Matrix<f64>,
+    true_labels: &[usize],
+) {
+    let start = Instant::now();
+    match DiMergeCoClusterer::new(k, n_rows, delta, local, HierarchicalMergeConfig::default(), num_threads, tp, m_blocks, n_blocks) {
+        Ok(c) => match c.run(matrix) {
+            Ok(result) => {
+                let runtime = start.elapsed().as_secs_f64();
+                let pred = extract_labels(&result.submatrices, n_rows, k);
+                println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
+                    method_name, calculate_nmi(true_labels, &pred), calculate_ari(true_labels, &pred), runtime, result.submatrices.len());
+            }
+            Err(e) => println!("{:<12} ERROR: {}", method_name, e),
+        },
+        Err(e) => println!("{:<12} ERROR: {}", method_name, e),
+    }
+}
+
 fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
+    // --- Named constants ---
+    const K: usize = 4;
+    const NUM_THREADS: usize = 16;
+    const TP: usize = 10;
+    const DELTA: f64 = 0.05;
+    // PNMTF penalty parameters
+    const PNMTF_TAU: f64 = 0.1;
+    const PNMTF_ETA: f64 = 0.1;
+    const PNMTF_GAMMA: f64 = 0.1;
+
     println!("\n{}", "=".repeat(70));
     println!("Evaluating {} dataset", dataset_name);
     println!("{}", "=".repeat(70));
@@ -200,10 +243,7 @@ fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
         (rows * cols * 8) as f64 / 1e9
     );
 
-    let matrix = Matrix::new(array.clone());
-    let k = 4;
-    let num_threads = 16;
-    let tp = 10;
+    let matrix = Matrix::new(array);
     // Use more blocks for larger datasets to reduce per-block computation
     let (m_blocks, n_blocks) = if rows > 10000 || cols > 10000 {
         (8, 8)  // RCV1-scale: ~2900x5900 per block
@@ -217,11 +257,11 @@ fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
     println!("\n--- Standalone Baseline ---");
     {
         let start = Instant::now();
-        let clusterer = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
-        match clusterer.cluster_local(&array) {
+        let clusterer = ClustererAdapter::new(SVDClusterer::new(K, 0.1));
+        match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let runtime = start.elapsed().as_secs_f64();
-                let pred = extract_labels(&subs, rows, k);
+                let pred = extract_labels(&subs, rows, K);
                 println!("spectral(standalone): NMI={:.4}, ARI={:.4}, Time={:.1}s",
                     calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime);
             }
@@ -230,84 +270,34 @@ fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
     }
 
     // ─── DiMergeCo + each atom method ───────────────────────────────
-    println!("\n--- DiMergeCo ({}x{} blocks, T_p={}) + Local Clusterers ---", m_blocks, n_blocks, tp);
+    println!("\n--- DiMergeCo ({}x{} blocks, T_p={}) + Local Clusterers ---", m_blocks, n_blocks, TP);
     println!("{:<12} {:>8} {:>8} {:>10} {:>8}", "Method", "NMI", "ARI", "Time(s)", "Clusters");
     println!("{}", "-".repeat(50));
 
     // DiMergeCo + Spectral
-    {
-        let start = Instant::now();
-        let local = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
-        match DiMergeCoClusterer::new(k, rows, 0.05, local, HierarchicalMergeConfig::default(), num_threads, tp, m_blocks, n_blocks) {
-            Ok(c) => match c.run(&matrix) {
-                Ok(result) => {
-                    let runtime = start.elapsed().as_secs_f64();
-                    let pred = extract_labels(&result.submatrices, rows, k);
-                    println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                        "spectral", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, result.submatrices.len());
-                }
-                Err(e) => println!("{:<12} ERROR: {}", "spectral", e),
-            },
-            Err(e) => println!("{:<12} ERROR: {}", "spectral", e),
-        }
-    }
+    run_dimerge_benchmark("spectral",
+        ClustererAdapter::new(SVDClusterer::new(K, 0.1)),
+        K, rows, DELTA, NUM_THREADS, TP, m_blocks, n_blocks, &matrix, &true_labels);
 
     // DiMergeCo + NBVD
-    {
-        let start = Instant::now();
-        let local = NbvdClusterer::with_config(make_config(k));
-        match DiMergeCoClusterer::new(k, rows, 0.05, local, HierarchicalMergeConfig::default(), num_threads, tp, m_blocks, n_blocks) {
-            Ok(c) => match c.run(&matrix) {
-                Ok(result) => {
-                    let runtime = start.elapsed().as_secs_f64();
-                    let pred = extract_labels(&result.submatrices, rows, k);
-                    println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                        "nbvd", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, result.submatrices.len());
-                }
-                Err(e) => println!("{:<12} ERROR: {}", "nbvd", e),
-            },
-            Err(e) => println!("{:<12} ERROR: {}", "nbvd", e),
-        }
-    }
+    run_dimerge_benchmark("nbvd",
+        NbvdClusterer::with_config(make_config(K)),
+        K, rows, DELTA, NUM_THREADS, TP, m_blocks, n_blocks, &matrix, &true_labels);
 
     // DiMergeCo + ONM3F
-    {
-        let start = Instant::now();
-        let local = Onm3fClusterer::with_config(make_config(k));
-        match DiMergeCoClusterer::new(k, rows, 0.05, local, HierarchicalMergeConfig::default(), num_threads, tp, m_blocks, n_blocks) {
-            Ok(c) => match c.run(&matrix) {
-                Ok(result) => {
-                    let runtime = start.elapsed().as_secs_f64();
-                    let pred = extract_labels(&result.submatrices, rows, k);
-                    println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                        "onm3f", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, result.submatrices.len());
-                }
-                Err(e) => println!("{:<12} ERROR: {}", "onm3f", e),
-            },
-            Err(e) => println!("{:<12} ERROR: {}", "onm3f", e),
-        }
-    }
+    run_dimerge_benchmark("onm3f",
+        Onm3fClusterer::with_config(make_config(K)),
+        K, rows, DELTA, NUM_THREADS, TP, m_blocks, n_blocks, &matrix, &true_labels);
 
-    // DiMergeCo + ONMTF - SKIPPED (too slow due to O(n²) intermediate matrices)
-    // DiMergeCo + PNMTF - SKIPPED (too slow due to O(n²) intermediate matrices)
+    // DiMergeCo + ONMTF - SKIPPED (too slow due to O(n^2) intermediate matrices)
+    // DiMergeCo + PNMTF - SKIPPED (too slow due to O(n^2) intermediate matrices)
+    // When re-enabled, use PnmtfClusterer::with_config(make_config(K), PNMTF_TAU, PNMTF_ETA, PNMTF_GAMMA)
+    let _ = (PNMTF_TAU, PNMTF_ETA, PNMTF_GAMMA); // suppress unused warnings
 
     // DiMergeCo + FNMF
-    {
-        let start = Instant::now();
-        let local = FnmfClusterer::new(k, 50);
-        match DiMergeCoClusterer::new(k, rows, 0.05, local, HierarchicalMergeConfig::default(), num_threads, tp, m_blocks, n_blocks) {
-            Ok(c) => match c.run(&matrix) {
-                Ok(result) => {
-                    let runtime = start.elapsed().as_secs_f64();
-                    let pred = extract_labels(&result.submatrices, rows, k);
-                    println!("{:<12} {:>8.4} {:>8.4} {:>9.1}s {:>8}",
-                        "fnmf", calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), runtime, result.submatrices.len());
-                }
-                Err(e) => println!("{:<12} ERROR: {}", "fnmf", e),
-            },
-            Err(e) => println!("{:<12} ERROR: {}", "fnmf", e),
-        }
-    }
+    run_dimerge_benchmark("fnmf",
+        FnmfClusterer::new(K, K),
+        K, rows, DELTA, NUM_THREADS, TP, m_blocks, n_blocks, &matrix, &true_labels);
 }
 
 fn main() {

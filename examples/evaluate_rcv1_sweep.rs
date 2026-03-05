@@ -144,7 +144,7 @@ fn run_dimerge_nbvd(
 ) -> Option<EvalResult> {
     let rows = array.nrows();
     let config = TriFactorConfig {
-        n_row_clusters: k, n_col_clusters: k, max_iter, n_init: 1, tol: 1e-9, seed: None,
+        n_row_clusters: k, n_col_clusters: k, max_iter, n_init: 3, tol: 1e-9, seed: None,
     };
     let start = Instant::now();
     let local = NbvdClusterer::with_config(config);
@@ -181,7 +181,7 @@ fn run_dimerge_onm3f(
 ) -> Option<EvalResult> {
     let rows = array.nrows();
     let config = TriFactorConfig {
-        n_row_clusters: k, n_col_clusters: k, max_iter, n_init: 1, tol: 1e-9, seed: None,
+        n_row_clusters: k, n_col_clusters: k, max_iter, n_init: 3, tol: 1e-9, seed: None,
     };
     let start = Instant::now();
     let local = Onm3fClusterer::with_config(config);
@@ -221,7 +221,7 @@ fn run_dimerge_pnmtf(
 ) -> Option<EvalResult> {
     let rows = array.nrows();
     let config = TriFactorConfig {
-        n_row_clusters: k, n_col_clusters: k, max_iter, n_init: 1, tol: 1e-9, seed: None,
+        n_row_clusters: k, n_col_clusters: k, max_iter, n_init: 3, tol: 1e-9, seed: None,
     };
     let start = Instant::now();
     let local = PnmtfClusterer::with_config(config, tau, eta, gamma);
@@ -291,7 +291,7 @@ fn main() {
     let (rows, cols) = (array.nrows(), array.ncols());
     println!("Loaded: {} x {} ({:.2} GB)", rows, cols, (rows * cols * 8) as f64 / 1e9);
 
-    let matrix = Matrix::new(array.clone());
+    let matrix = Matrix::new(array);
     let k = 4;
 
     println!("\n{:=<80}", "");
@@ -308,27 +308,27 @@ fn main() {
     let threshold = 0.05;
 
     // Spectral (fast, run first)
-    if let Some(r) = run_dimerge_spectral(&matrix, &array, &true_labels, k, m_blocks, n_blocks, tp, threshold) {
+    if let Some(r) = run_dimerge_spectral(&matrix, &matrix.data, &true_labels, k, m_blocks, n_blocks, tp, threshold) {
         print_result(&r);
     }
 
     // PNMTF (from Classic4: good accuracy/speed balance)
-    if let Some(r) = run_dimerge_pnmtf(&matrix, &array, &true_labels, k, m_blocks, n_blocks, tp, threshold, 10, 0.1, 0.1, 0.1) {
+    if let Some(r) = run_dimerge_pnmtf(&matrix, &matrix.data, &true_labels, k, m_blocks, n_blocks, tp, threshold, 10, 0.1, 0.1, 0.1) {
         print_result(&r);
     }
 
     // FNMF (fast ANLS method)
-    if let Some(r) = run_dimerge_fnmf(&matrix, &array, &true_labels, k, m_blocks, n_blocks, tp, threshold, 20) {
+    if let Some(r) = run_dimerge_fnmf(&matrix, &matrix.data, &true_labels, k, m_blocks, n_blocks, tp, threshold, 20) {
         print_result(&r);
     }
 
     // NBVD (slower but baseline NMF)
-    if let Some(r) = run_dimerge_nbvd(&matrix, &array, &true_labels, k, m_blocks, n_blocks, tp, threshold, 10) {
+    if let Some(r) = run_dimerge_nbvd(&matrix, &matrix.data, &true_labels, k, m_blocks, n_blocks, tp, threshold, 10) {
         print_result(&r);
     }
 
     // ONM3F
-    if let Some(r) = run_dimerge_onm3f(&matrix, &array, &true_labels, k, m_blocks, n_blocks, tp, threshold, 10) {
+    if let Some(r) = run_dimerge_onm3f(&matrix, &matrix.data, &true_labels, k, m_blocks, n_blocks, tp, threshold, 10) {
         print_result(&r);
     }
 
@@ -339,35 +339,35 @@ fn main() {
     // ========== Phase 2: Parameter sweep ==========
     // Sweep block sizes
     for &(mb, nb) in &[(4, 4), (8, 8), (16, 16)] {
-        if let Some(r) = run_dimerge_spectral(&matrix, &array, &true_labels, k, mb, nb, tp, threshold) {
+        if let Some(r) = run_dimerge_spectral(&matrix, &matrix.data, &true_labels, k, mb, nb, tp, threshold) {
             print_result(&r);
         }
     }
 
     // Sweep T_p for spectral
     for &t in &[5, 10, 20] {
-        if let Some(r) = run_dimerge_spectral(&matrix, &array, &true_labels, k, 8, 8, t, threshold) {
+        if let Some(r) = run_dimerge_spectral(&matrix, &matrix.data, &true_labels, k, 8, 8, t, threshold) {
             print_result(&r);
         }
     }
 
     // Sweep threshold
     for &th in &[0.01, 0.05, 0.1, 0.2] {
-        if let Some(r) = run_dimerge_spectral(&matrix, &array, &true_labels, k, 8, 8, 10, th) {
+        if let Some(r) = run_dimerge_spectral(&matrix, &matrix.data, &true_labels, k, 8, 8, 10, th) {
             print_result(&r);
         }
     }
 
     // Sweep max_iter for PNMTF
     for &iter in &[5, 10, 20] {
-        if let Some(r) = run_dimerge_pnmtf(&matrix, &array, &true_labels, k, 8, 8, 10, 0.05, iter, 0.1, 0.1, 0.1) {
+        if let Some(r) = run_dimerge_pnmtf(&matrix, &matrix.data, &true_labels, k, 8, 8, 10, 0.05, iter, 0.1, 0.1, 0.1) {
             print_result(&r);
         }
     }
 
     // Sweep tau for PNMTF
     for &tau in &[0.01, 0.1, 1.0] {
-        if let Some(r) = run_dimerge_pnmtf(&matrix, &array, &true_labels, k, 8, 8, 10, 0.05, 10, tau, tau, tau) {
+        if let Some(r) = run_dimerge_pnmtf(&matrix, &matrix.data, &true_labels, k, 8, 8, 10, 0.05, 10, tau, tau, tau) {
             print_result(&r);
         }
     }

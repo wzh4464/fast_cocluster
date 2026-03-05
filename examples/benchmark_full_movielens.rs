@@ -120,8 +120,8 @@ fn make_config(k: usize) -> TriFactorConfig {
     TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
-        max_iter: 10,  // reduced for speed on large data
-        n_init: 1,
+        max_iter: 10,  // reduced from default (300) since full MovieLens is very large; 10 iters suffice for convergence on subblocks
+        n_init: 3,
         tol: 1e-6,
         seed: Some(42),
     }
