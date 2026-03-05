@@ -181,7 +181,7 @@ fn make_tri_config(k: usize) -> TriFactorConfig {
     TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
-        max_iter: 100,
+        max_iter: 50,
         n_init: 1,
         tol: 1e-9,
         seed: Some(0),
@@ -251,9 +251,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     // 1. SCC (SVD + KMeans, standalone via ClustererAdapter)
     // -----------------------------------------------------------------------
+    // Move array into Matrix once — reused by all methods
+    let matrix = Matrix::new(array);
+
     {
         let scc = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
-        results.push(run_standalone("SCC", &scc, &array));
+        results.push(run_standalone("SCC", &scc, &matrix.data));
     }
 
     // -----------------------------------------------------------------------
@@ -261,7 +264,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     {
         println!("\nRunning SpectralCC...");
-        let matrix = Matrix::new(array.clone());
         let spectral = SpectralCocluster::new(k, k);
         let start = Instant::now();
         match spectral.fit(&matrix) {
@@ -302,7 +304,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     {
         let fnmf = FnmfClusterer::new(k, 50);
-        results.push(run_standalone("FNMF", &fnmf, &array));
+        results.push(run_standalone("FNMF", &fnmf, &matrix.data));
     }
 
     // -----------------------------------------------------------------------
@@ -310,7 +312,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     {
         let nbvd = NbvdClusterer::with_config(make_tri_config(k));
-        results.push(run_standalone("NBVD", &nbvd, &array));
+        results.push(run_standalone("NBVD", &nbvd, &matrix.data));
     }
 
     // -----------------------------------------------------------------------
@@ -318,7 +320,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     {
         let onm3f = Onm3fClusterer::with_config(make_tri_config(k));
-        results.push(run_standalone("ONM3F", &onm3f, &array));
+        results.push(run_standalone("ONM3F", &onm3f, &matrix.data));
     }
 
     // -----------------------------------------------------------------------
@@ -326,7 +328,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     {
         let onmtf = OnmtfClusterer::with_config(make_tri_config(k));
-        results.push(run_standalone("ONMTF", &onmtf, &array));
+        results.push(run_standalone("ONMTF", &onmtf, &matrix.data));
     }
 
     // -----------------------------------------------------------------------
@@ -334,15 +336,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     {
         let pnmtf = PnmtfClusterer::new(k, k).with_penalties(0.1, 0.1, 0.1);
-        println!("\nRunning PNMTF (may take >1h, Ctrl-C to skip)...");
-        results.push(run_standalone("PNMTF", &pnmtf, &array));
+        results.push(run_standalone("PNMTF", &pnmtf, &matrix.data));
     }
 
     // -----------------------------------------------------------------------
-    // 8. DiMergeCo-SCC (2x2, T_p=10)
+    // 8. DiMergeCo-SCC (2x2, T_p=10 and T_p=30)
     // -----------------------------------------------------------------------
-    let matrix = Matrix::new(array);
-
     for &tp in &[10usize, 30] {
         let label = format!("DiMergeCo-SCC_tp{}", tp);
         println!("\nRunning {} (2x2 blocks)...", label);
