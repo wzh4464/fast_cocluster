@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::time::{Duration, Instant};
 
 use ndarray::{Array2, Axis};
 use ndarray_rand::rand::rngs::StdRng;
@@ -14,10 +15,17 @@ use crate::submatrix::Submatrix;
 pub struct TriFactorConfig {
     pub n_row_clusters: usize,
     pub n_col_clusters: usize,
+    /// Outer convergence iterations (normalize + check after each).
     pub max_iter: usize,
+    /// MUR update steps per outer iteration (before normalization).
+    /// Old code used max_iter here (giving max_iter² total), causing O(10,000) updates.
+    /// Default: 10, giving max_iter*10 total steps.
+    pub inner_iter: usize,
     pub n_init: usize,
     pub tol: f64,
     pub seed: Option<u64>,
+    /// Optional timeout in seconds. If set, factorization aborts early when exceeded.
+    pub timeout_secs: Option<f64>,
 }
 
 impl Default for TriFactorConfig {
@@ -26,9 +34,11 @@ impl Default for TriFactorConfig {
             n_row_clusters: 2,
             n_col_clusters: 2,
             max_iter: 100,
+            inner_iter: 10,
             n_init: 1,
             tol: 1e-9,
             seed: None,
+            timeout_secs: None,
         }
     }
 }
@@ -66,10 +76,9 @@ pub trait TriFactorUpdater: Send + Sync {
 /// Run tri-factorization with n_init random restarts.
 /// Keeps the result with the best (lowest) criterion value.
 ///
-/// Convergence loop matches the Python NMTFcoclust pattern:
-/// - Outer loop: up to max_iter rounds, checks criterion convergence after each
-/// - Inner loop: max_iter update steps (F, G, S) without normalization
-/// - After inner loop: normalize, compute criterion, check convergence
+/// Two-level loop structure:
+/// - Outer loop: up to max_iter rounds, normalize + check convergence after each
+/// - Inner loop: inner_iter MUR update steps (F, G, S) without normalization
 pub fn run_tri_factorization(
     config: &TriFactorConfig,
     updater: &dyn TriFactorUpdater,
@@ -86,6 +95,8 @@ pub fn run_tri_factorization(
     let mut best_g = Array2::zeros((m, l));
 
     let base_seed = config.seed.unwrap_or(42);
+    let timeout = config.timeout_secs.map(|s| Duration::from_secs_f64(s));
+    let start = Instant::now();
 
     for init_idx in 0..config.n_init {
         let seed = base_seed.wrapping_add(init_idx as u64);
@@ -97,19 +108,23 @@ pub fn run_tri_factorization(
 
         let mut prev_criterion = f64::NEG_INFINITY;
 
-        // Outer convergence loop (matching Python NMTFcoclust)
         for _outer in 0..config.max_iter {
-            // Inner update loop: max_iter steps of F, G, S updates (no normalization)
-            for _inner in 0..config.max_iter {
+            // Check timeout
+            if let Some(limit) = timeout {
+                if start.elapsed() > limit {
+                    break;
+                }
+            }
+
+            // Inner MUR updates (no normalization)
+            for _inner in 0..config.inner_iter {
                 updater.update_f(x, &mut f, &s, &g);
                 updater.update_g(x, &f, &s, &mut g);
                 updater.update_s(x, &f, &mut s, &g);
             }
 
-            // Normalize after inner loop
+            // Normalize and check convergence
             updater.normalize(x, &mut f, &mut s, &mut g);
-
-            // Check convergence
             let criterion = updater.compute_criterion(x, &f, &s, &g);
             if (criterion - prev_criterion).abs() <= config.tol {
                 break;
@@ -123,6 +138,13 @@ pub fn run_tri_factorization(
             best_f = f;
             best_s = s;
             best_g = g;
+        }
+
+        // Check timeout before starting next init
+        if let Some(limit) = timeout {
+            if start.elapsed() > limit {
+                break;
+            }
         }
     }
 

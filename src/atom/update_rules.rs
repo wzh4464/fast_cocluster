@@ -42,13 +42,30 @@ pub fn nan_to_num(a: &mut Array2<f64>) {
 }
 
 /// Frobenius norm squared: ||X - F*S*G^T||_F^2
+///
+/// Uses trace identity to avoid forming the full m×n approximation matrix:
+/// ||X - FSG^T||^2 = ||X||^2 - 2*<X*G, F*S> + tr(S^T*F^T*F*S * G^T*G)
 pub fn reconstruction_error(
     x: &Array2<f64>,
     f: &Array2<f64>,
     s: &Array2<f64>,
     g: &Array2<f64>,
 ) -> f64 {
-    let approx = f.dot(s).dot(&g.t());
-    let diff = x - &approx;
-    diff.mapv(|v| v * v).sum()
+    // Term 1: ||X||_F^2
+    let x_norm_sq: f64 = x.iter().map(|&v| v * v).sum();
+
+    // Term 2: <X*G, F*S> = sum of elementwise (X*G) .* (F*S)
+    // Both are m×l matrices (l = n_col_clusters, small)
+    let xg = x.dot(g); // m×l
+    let fs = f.dot(s); // m×l
+    let cross: f64 = xg.iter().zip(fs.iter()).map(|(&a, &b)| a * b).sum();
+
+    // Term 3: ||FSG^T||_F^2 = tr(S^T * F^T*F * S * G^T*G)
+    // All intermediates are k×k or l×l (tiny)
+    let ftf = f.t().dot(f); // k×k
+    let gtg = g.t().dot(g); // l×l
+    let c = s.t().dot(&ftf).dot(s); // l×l
+    let approx_norm_sq: f64 = c.iter().zip(gtg.iter()).map(|(&a, &b)| a * b).sum();
+
+    x_norm_sq - 2.0 * cross + approx_norm_sq
 }

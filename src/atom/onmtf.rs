@@ -107,9 +107,11 @@ mod tests {
             n_row_clusters: 2,
             n_col_clusters: 2,
             max_iter: 20,
+            inner_iter: 20,
             n_init: 3,
             tol: 1e-9,
             seed: Some(42),
+            timeout_secs: None,
         };
         let result = run_tri_factorization(&config, &OnmtfUpdater, &x);
         assert!(

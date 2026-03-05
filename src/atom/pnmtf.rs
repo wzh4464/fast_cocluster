@@ -68,16 +68,37 @@ impl TriFactorUpdater for PnmtfUpdater {
         s: &Array2<f64>,
         g: &Array2<f64>,
     ) -> f64 {
-        let k = f.ncols();
-        let l = g.ncols();
-        let p_g = Self::penalty_matrix(k);
-        let p_s = Self::penalty_matrix(l);
-
         let recon = reconstruction_error(x, f, s, g);
-        // tr(F * P_g * F^T) = sum of elementwise (F * P_g * F^T)
-        let penalty_f = f.dot(&p_g).dot(&f.t()).diag().sum();
-        let penalty_g = g.dot(&p_s).dot(&g.t()).diag().sum();
-        let penalty_s = s.t().dot(s).diag().sum();
+
+        // tr(F * P_g * F^T) where P_g = J_k - I_k (J = ones matrix)
+        // = tr(F*J*F^T) - tr(F*F^T)
+        // = sum_i (row_sum_i)^2 - ||F||_F^2
+        // This avoids forming an m×m intermediate matrix.
+        let f_norm_sq: f64 = f.iter().map(|&v| v * v).sum();
+        let f_row_sum_sq: f64 = f
+            .rows()
+            .into_iter()
+            .map(|row| {
+                let s: f64 = row.iter().sum();
+                s * s
+            })
+            .sum();
+        let penalty_f = f_row_sum_sq - f_norm_sq;
+
+        // Same for G with P_s = J_l - I_l
+        let g_norm_sq: f64 = g.iter().map(|&v| v * v).sum();
+        let g_row_sum_sq: f64 = g
+            .rows()
+            .into_iter()
+            .map(|row| {
+                let s: f64 = row.iter().sum();
+                s * s
+            })
+            .sum();
+        let penalty_g = g_row_sum_sq - g_norm_sq;
+
+        // tr(S^T * S) = ||S||_F^2
+        let penalty_s: f64 = s.iter().map(|&v| v * v).sum();
 
         0.5 * recon
             + 0.5 * self.tau * penalty_f
@@ -169,9 +190,11 @@ mod tests {
             n_row_clusters: 2,
             n_col_clusters: 2,
             max_iter: 20,
+            inner_iter: 20,
             n_init: 3,
             tol: 1e-9,
             seed: Some(42),
+            timeout_secs: None,
         };
         let updater = PnmtfUpdater {
             tau: 0.1,

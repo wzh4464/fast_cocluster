@@ -121,9 +121,11 @@ fn make_config(k: usize) -> TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 10,  // reduced for speed on large data
+        inner_iter: 10,
         n_init: 1,
         tol: 1e-6,
         seed: Some(42),
+        timeout_secs: None,
     }
 }
 

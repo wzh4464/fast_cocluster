@@ -143,7 +143,7 @@ fn run_dimerge_nbvd(
 ) -> Option<EvalResult> {
     let rows = array.nrows();
     let config = TriFactorConfig {
-        n_row_clusters: k, n_col_clusters: k, max_iter, n_init: 1, tol: 1e-9, seed: None,
+        n_row_clusters: k, n_col_clusters: k, max_iter, inner_iter: 10, n_init: 1, tol: 1e-9, seed: None, timeout_secs: None,
     };
     let start = Instant::now();
     let local = NbvdClusterer::with_config(config);
@@ -180,7 +180,7 @@ fn run_dimerge_onm3f(
 ) -> Option<EvalResult> {
     let rows = array.nrows();
     let config = TriFactorConfig {
-        n_row_clusters: k, n_col_clusters: k, max_iter, n_init: 1, tol: 1e-9, seed: None,
+        n_row_clusters: k, n_col_clusters: k, max_iter, inner_iter: 10, n_init: 1, tol: 1e-9, seed: None, timeout_secs: None,
     };
     let start = Instant::now();
     let local = Onm3fClusterer::with_config(config);
@@ -220,7 +220,7 @@ fn run_dimerge_pnmtf(
 ) -> Option<EvalResult> {
     let rows = array.nrows();
     let config = TriFactorConfig {
-        n_row_clusters: k, n_col_clusters: k, max_iter, n_init: 1, tol: 1e-9, seed: None,
+        n_row_clusters: k, n_col_clusters: k, max_iter, inner_iter: 10, n_init: 1, tol: 1e-9, seed: None, timeout_secs: None,
     };
     let start = Instant::now();
     let local = PnmtfClusterer::with_config(config, tau, eta, gamma);

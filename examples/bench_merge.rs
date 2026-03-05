@@ -22,9 +22,11 @@ fn main() {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 20,
+        inner_iter: 10,
         n_init: 1,
         tol: 1e-9,
         seed: None,
+        timeout_secs: None,
     };
 
     // Test with optimized config: T_p=20, 6x6

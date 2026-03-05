@@ -130,9 +130,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             n_row_clusters,
             n_col_clusters,
             max_iter: 50,
+            inner_iter: 10,
             n_init: 1,
             tol: 1e-9,
             seed: Some(seed),
+            timeout_secs: None,
         };
         let clusterer = NbvdClusterer::with_config(config);
         let submatrices = clusterer.cluster_local(&x)?;
