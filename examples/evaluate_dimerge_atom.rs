@@ -201,9 +201,12 @@ fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
     let k = 4;
     let num_threads = 16;
     let tp = 10;
-    // Use more blocks for larger datasets to reduce per-block computation
-    let (m_blocks, n_blocks) = if rows > 10000 || cols > 10000 {
-        (8, 8)  // RCV1-scale: ~2900x5900 per block
+    // Block configuration depends on data sparsity and size.
+    // For large sparse datasets (RCV1): use row-only partitioning (n_blocks=1)
+    // because random column splits destroy sparse TF-IDF signal.
+    // For moderate datasets: use square grids.
+    let (m_blocks, n_blocks) = if cols > 10000 {
+        (8, 1)  // RCV1-scale: row-only, each block sees full vocabulary
     } else if rows > 2000 || cols > 2000 {
         (4, 4)  // Classic4-paper scale
     } else {

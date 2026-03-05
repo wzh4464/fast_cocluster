@@ -110,7 +110,11 @@ fn main() {
     let k = 4;
     let num_threads = 16;
     let tp = 20;  // optimized from sweep (was 10)
-    let (m_blocks, n_blocks) = (6, 6);  // optimized from sweep (was 8x8)
+    // Row-only partitioning (n_blocks=1): keeps full vocabulary for each block.
+    // Column partitioning destroys sparse TF-IDF signal — each doc has ~76 non-zero
+    // features out of 47k, so random column splits leave too few features per block
+    // for spectral co-clustering to find structure (NMI collapses to ~0).
+    let (m_blocks, n_blocks) = (8, 1);
 
     println!("\n{}", "=".repeat(80));
     println!("Method              Standalone                    DiMergeCo");

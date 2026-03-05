@@ -2,7 +2,7 @@
   "timestamp": "2026-02-04T17:13:29.761575",
   "dataset": "rcv1_test",
   "shape": [
-    781265,
+    20000,
     47236
   ],
   "n_clusters": 4,

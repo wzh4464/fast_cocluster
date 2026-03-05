@@ -102,7 +102,7 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
             parallel_config,
             num_iterations: num_iterations.max(1),
             m_blocks: m_blocks.max(2),
-            n_blocks: n_blocks.max(2),
+            n_blocks: n_blocks.max(1), // n_blocks=1 = row-only partitioning (no column split)
         })
     }
 
@@ -159,6 +159,38 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
             self.num_threads, matrix.rows, matrix.cols,
             self.num_iterations, self.m_blocks, self.n_blocks
         );
+
+        // Warn if column partitioning on sparse data (likely to degrade spectral methods)
+        if self.n_blocks > 1 {
+            if let Some(total_elements) = matrix.rows.checked_mul(matrix.cols) {
+                if total_elements > 0 {
+                    // Early-exit sparsity estimation: stop counting if >5% are nonzero
+                    let max_nonzeros_for_sparse = ((total_elements as f64) * 0.05).ceil() as usize;
+                    let mut nonzero_count: usize = 0;
+                    let mut is_sparse = true;
+                    for &v in matrix.data.iter() {
+                        if v.abs() > 1e-15 {
+                            nonzero_count += 1;
+                            if nonzero_count > max_nonzeros_for_sparse {
+                                is_sparse = false;
+                                break;
+                            }
+                        }
+                    }
+                    if is_sparse {
+                        let sparsity = 1.0 - (nonzero_count as f64 / total_elements as f64);
+                        if sparsity > 0.95 {
+                            log::warn!(
+                                "DiMergeCo: matrix is {:.1}% sparse with n_blocks={}. Column partitioning on \
+                                 very sparse data may degrade spectral co-clustering quality. Consider using \
+                                 n_blocks=1 (row-only partitioning) to preserve full feature vocabulary.",
+                                sparsity * 100.0, self.n_blocks
+                            );
+                        }
+                    }
+                }
+            }
+        }
 
         let (final_result, stats) = pool.install(|| -> Result<_, DiMergeCoError> {
             // Phase 1+2: T_p iterations of random partitioning + local clustering

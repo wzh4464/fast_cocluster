@@ -301,7 +301,7 @@ DiMergeCo produces trivial (all-in-one or random) clustering when:
 1. **Grid too fine:** Each sub-block has too few rows relative to k (observed: 4x4 on Classic4 with n=6460, k=4).
 2. **Sparse matrix + spectral atom:** Sub-blocks of sparse matrices may have near-zero entries, breaking SVD-based methods.
 3. **Wrong merge strategy:** Hierarchical and Greedy-overlap consistently fail.
-4. **Large sparse data + SCC atom:** RCV1-train with 2x2 grid still collapses (NMI~0.0001), suggesting SCC is fundamentally incompatible with the block-partition approach on sparse data.
+4. **Large sparse data + SCC atom + column partitioning:** RCV1-train with 2x2 grid collapses (NMI~0.0001) when columns are partitioned. **Root cause:** RCV1 is ~99.8% sparse (each doc has ~76 non-zero features out of 47k). Random column partitioning fragments these features across blocks, leaving each subblock with ~13 non-zero features per doc — insufficient for spectral co-clustering. **Fix:** Use row-only partitioning (`n_blocks=1`) to keep the full vocabulary intact per block.
 
 ---
 
@@ -311,7 +311,7 @@ DiMergeCo produces trivial (all-in-one or random) clustering when:
 
 1. **Hierarchical merge is broken.** It should theoretically be the best strategy, but produces much worse results than the simple Union/Centralized approach. Needs investigation of information loss during successive pairwise merges.
 
-2. **Sparse matrix handling.** DiMergeCo + SCC collapses on RCV1 even with 2x2 grid. The framework needs sparse-aware block partitioning or a different atom method for sparse data.
+2. **Sparse matrix handling.** DiMergeCo + SCC collapses on RCV1 with column partitioning (any grid). **Mitigation:** `n_blocks=1` (row-only partitioning) preserves full vocabulary per block. Needs benchmarking to confirm NMI recovery with this approach.
 
 3. **NBVD is the only promising atom for large-scale.** But it's still very slow (~7000s on MovieLens). DiMergeCo's 1.07x speedup is insufficient for a compelling paper contribution.
 
