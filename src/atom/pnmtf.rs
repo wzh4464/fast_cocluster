@@ -11,6 +11,26 @@ use super::tri_factor_base::{
 };
 use super::update_rules::{nan_to_num, reconstruction_error, sqrt_multiplicative_update};
 
+/// Frobenius norm squared: ||A||_F^2
+fn fro_norm_sq(a: &Array2<f64>) -> f64 {
+    a.iter().map(|&v| v * v).sum()
+}
+
+/// tr(A*(J-I)*A^T) = sum_i(row_sum_i)^2 - ||A||_F^2
+/// Avoids forming large intermediate matrices.
+fn penalty_j_minus_i(a: &Array2<f64>) -> f64 {
+    let norm_sq = fro_norm_sq(a);
+    let row_sum_sq: f64 = a
+        .rows()
+        .into_iter()
+        .map(|row| {
+            let s: f64 = row.iter().sum();
+            s * s
+        })
+        .sum();
+    row_sum_sq - norm_sq
+}
+
 /// PNMTF (Wang 2017) — Penalty regularization with tau, eta, gamma
 pub struct PnmtfUpdater {
     pub tau: f64,
@@ -70,35 +90,11 @@ impl TriFactorUpdater for PnmtfUpdater {
     ) -> f64 {
         let recon = reconstruction_error(x, f, s, g);
 
-        // tr(F * P_g * F^T) where P_g = J_k - I_k (J = ones matrix)
-        // = tr(F*J*F^T) - tr(F*F^T)
-        // = sum_i (row_sum_i)^2 - ||F||_F^2
-        // This avoids forming an m×m intermediate matrix.
-        let f_norm_sq: f64 = f.iter().map(|&v| v * v).sum();
-        let f_row_sum_sq: f64 = f
-            .rows()
-            .into_iter()
-            .map(|row| {
-                let s: f64 = row.iter().sum();
-                s * s
-            })
-            .sum();
-        let penalty_f = f_row_sum_sq - f_norm_sq;
-
-        // Same for G with P_s = J_l - I_l
-        let g_norm_sq: f64 = g.iter().map(|&v| v * v).sum();
-        let g_row_sum_sq: f64 = g
-            .rows()
-            .into_iter()
-            .map(|row| {
-                let s: f64 = row.iter().sum();
-                s * s
-            })
-            .sum();
-        let penalty_g = g_row_sum_sq - g_norm_sq;
-
-        // tr(S^T * S) = ||S||_F^2
-        let penalty_s: f64 = s.iter().map(|&v| v * v).sum();
+        // tr(A*(J-I)*A^T) = sum_i(row_sum_i)^2 - ||A||_F^2
+        // Avoids forming n×n (for F) or m×m (for G) intermediate matrices.
+        let penalty_f = penalty_j_minus_i(f);
+        let penalty_g = penalty_j_minus_i(g);
+        let penalty_s = fro_norm_sq(s); // tr(S^T S) = ||S||_F^2
 
         0.5 * recon
             + 0.5 * self.tau * penalty_f

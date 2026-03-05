@@ -95,7 +95,9 @@ pub fn run_tri_factorization(
     let mut best_g = Array2::zeros((m, l));
 
     let base_seed = config.seed.unwrap_or(42);
-    let timeout = config.timeout_secs.map(|s| Duration::from_secs_f64(s));
+    let timeout = config.timeout_secs
+        .filter(|&s| s.is_finite() && s > 0.0)
+        .map(Duration::from_secs_f64);
     let start = Instant::now();
 
     for init_idx in 0..config.n_init {
@@ -107,11 +109,13 @@ pub fn run_tri_factorization(
         let mut g = Array2::random_using((m, l), Uniform::new(0.0, 1.0), &mut rng);
 
         let mut prev_criterion = f64::NEG_INFINITY;
+        let mut timed_out = false;
 
         for _outer in 0..config.max_iter {
             // Check timeout
             if let Some(limit) = timeout {
                 if start.elapsed() > limit {
+                    timed_out = true;
                     break;
                 }
             }
@@ -132,12 +136,15 @@ pub fn run_tri_factorization(
             prev_criterion = criterion;
         }
 
-        let final_criterion = updater.compute_criterion(x, &f, &s, &g);
-        if final_criterion < best_criterion {
-            best_criterion = final_criterion;
-            best_f = f;
-            best_s = s;
-            best_g = g;
+        // Skip scoring if this init timed out (may have done zero updates)
+        if !timed_out {
+            let final_criterion = updater.compute_criterion(x, &f, &s, &g);
+            if final_criterion < best_criterion {
+                best_criterion = final_criterion;
+                best_f = f;
+                best_s = s;
+                best_g = g;
+            }
         }
 
         // Check timeout before starting next init
