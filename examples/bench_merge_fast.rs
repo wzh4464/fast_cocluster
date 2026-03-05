@@ -22,9 +22,11 @@ fn main() {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 20,
+        inner_iter: 10,
         n_init: 1,
         tol: 1e-9,
         seed: None,
+        timeout_secs: None,
     };
 
     // Fast config: T_p=5, 4x4 (5 * 16 = 80 partitions, much faster)

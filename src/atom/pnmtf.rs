@@ -11,6 +11,26 @@ use super::tri_factor_base::{
 };
 use super::update_rules::{nan_to_num, reconstruction_error, sqrt_multiplicative_update};
 
+/// Frobenius norm squared: ||A||_F^2
+fn fro_norm_sq(a: &Array2<f64>) -> f64 {
+    a.iter().map(|&v| v * v).sum()
+}
+
+/// tr(A*(J-I)*A^T) = sum_i(row_sum_i)^2 - ||A||_F^2
+/// Avoids forming large intermediate matrices.
+fn penalty_j_minus_i(a: &Array2<f64>) -> f64 {
+    let norm_sq = fro_norm_sq(a);
+    let row_sum_sq: f64 = a
+        .rows()
+        .into_iter()
+        .map(|row| {
+            let s: f64 = row.iter().sum();
+            s * s
+        })
+        .sum();
+    row_sum_sq - norm_sq
+}
+
 /// PNMTF (Wang 2017) — Penalty regularization with tau, eta, gamma
 pub struct PnmtfUpdater {
     pub tau: f64,
@@ -68,16 +88,13 @@ impl TriFactorUpdater for PnmtfUpdater {
         s: &Array2<f64>,
         g: &Array2<f64>,
     ) -> f64 {
-        let k = f.ncols();
-        let l = g.ncols();
-        let p_g = Self::penalty_matrix(k);
-        let p_s = Self::penalty_matrix(l);
-
         let recon = reconstruction_error(x, f, s, g);
-        // tr(F * P_g * F^T) = sum of elementwise (F * P_g * F^T)
-        let penalty_f = f.dot(&p_g).dot(&f.t()).diag().sum();
-        let penalty_g = g.dot(&p_s).dot(&g.t()).diag().sum();
-        let penalty_s = s.t().dot(s).diag().sum();
+
+        // tr(A*(J-I)*A^T) = sum_i(row_sum_i)^2 - ||A||_F^2
+        // Avoids forming n×n (for F) or m×m (for G) intermediate matrices.
+        let penalty_f = penalty_j_minus_i(f);
+        let penalty_g = penalty_j_minus_i(g);
+        let penalty_s = fro_norm_sq(s); // tr(S^T S) = ||S||_F^2
 
         0.5 * recon
             + 0.5 * self.tau * penalty_f
@@ -169,9 +186,11 @@ mod tests {
             n_row_clusters: 2,
             n_col_clusters: 2,
             max_iter: 20,
+            inner_iter: 20,
             n_init: 3,
             tol: 1e-9,
             seed: Some(42),
+            timeout_secs: None,
         };
         let updater = PnmtfUpdater {
             tau: 0.1,
