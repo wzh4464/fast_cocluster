@@ -17,22 +17,31 @@ pub struct NbvdUpdater;
 impl TriFactorUpdater for NbvdUpdater {
     fn update_f(&self, x: &Array2<f64>, f: &mut Array2<f64>, s: &Array2<f64>, g: &Array2<f64>) {
         // F ← F * (X*G*S^T) / (F*S*G^T*G*S^T)
-        let numer = x.dot(g).dot(&s.t());
-        let denom = f.dot(s).dot(&g.t()).dot(g).dot(&s.t());
+        // Optimized: avoid m×n intermediate by computing (G^T*G) first
+        // Denom = F * S * (G^T*G) * S^T  (all k×k intermediates except F×result)
+        let gtg = g.t().dot(g); // k×k
+        let numer = x.dot(g).dot(&s.t()); // m×k
+        let denom = f.dot(s).dot(&gtg).dot(&s.t()); // m×k (no m×n intermediate!)
         *f = multiplicative_update(f, &numer, &denom, 1e-10);
     }
 
     fn update_g(&self, x: &Array2<f64>, f: &Array2<f64>, s: &Array2<f64>, g: &mut Array2<f64>) {
         // G ← G * (X^T*F*S) / (G*S^T*F^T*F*S)
-        let numer = x.t().dot(f).dot(s);
-        let denom = g.dot(&s.t()).dot(&f.t()).dot(f).dot(s);
+        // Optimized: avoid n×m intermediate by computing (F^T*F) first
+        // Denom = G * S^T * (F^T*F) * S  (all k×k intermediates except G×result)
+        let ftf = f.t().dot(f); // k×k
+        let numer = x.t().dot(f).dot(s); // n×k
+        let denom = g.dot(&s.t()).dot(&ftf).dot(s); // n×k (no n×m intermediate!)
         *g = multiplicative_update(g, &numer, &denom, 1e-10);
     }
 
     fn update_s(&self, x: &Array2<f64>, f: &Array2<f64>, s: &mut Array2<f64>, g: &Array2<f64>) {
         // S ← S * (F^T*X*G) / (F^T*F*S*G^T*G)
-        let numer = f.t().dot(x).dot(g);
-        let denom = f.t().dot(f).dot(&*s).dot(&g.t()).dot(g);
+        // Already efficient: all intermediates are k×k or k×m/n
+        let ftf = f.t().dot(f); // k×k
+        let gtg = g.t().dot(g); // k×k
+        let numer = f.t().dot(x).dot(g); // k×k
+        let denom = ftf.dot(&*s).dot(&gtg); // k×k
         *s = multiplicative_update(s, &numer, &denom, 1e-10);
     }
 

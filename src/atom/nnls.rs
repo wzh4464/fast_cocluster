@@ -1,4 +1,5 @@
 use ndarray::{s, Array1, Array2, Axis};
+use ndarray_linalg::Solve;
 
 /// Result from NNLS solver
 pub struct NnlsResult {
@@ -270,8 +271,10 @@ fn column_group(b: &Array2<bool>) -> Vec<Vec<usize>> {
     groups
 }
 
-/// Solve A*X = B using LU decomposition (via manual Gaussian elimination)
+/// Solve A*X = B using LAPACK LU factorization with SVD fallback
 fn solve_linear(a: &Array2<f64>, b: &Array2<f64>) -> Array2<f64> {
+    use ndarray_linalg::{Factorize, LeastSquaresSvd};
+
     let n = a.nrows();
     let k = b.ncols();
 
@@ -279,64 +282,41 @@ fn solve_linear(a: &Array2<f64>, b: &Array2<f64>) -> Array2<f64> {
         return Array2::zeros((n, k));
     }
 
-    // Augmented matrix [A | B]
-    let mut aug = Array2::zeros((n, n + k));
-    aug.slice_mut(s![.., ..n]).assign(a);
-    aug.slice_mut(s![.., n..]).assign(b);
-
-    // Gaussian elimination with partial pivoting
-    for col in 0..n {
-        // Find pivot
-        let mut max_val = aug[[col, col]].abs();
-        let mut max_row = col;
-        for row in (col + 1)..n {
-            let val = aug[[row, col]].abs();
-            if val > max_val {
-                max_val = val;
-                max_row = row;
-            }
-        }
-
-        if max_val < 1e-30 {
-            continue; // Singular — skip
-        }
-
-        // Swap rows
-        if max_row != col {
-            for j in 0..(n + k) {
-                let tmp = aug[[col, j]];
-                aug[[col, j]] = aug[[max_row, j]];
-                aug[[max_row, j]] = tmp;
-            }
-        }
-
-        // Eliminate below
-        let pivot = aug[[col, col]];
-        for row in (col + 1)..n {
-            let factor = aug[[row, col]] / pivot;
-            for j in col..(n + k) {
-                aug[[row, j]] -= factor * aug[[col, j]];
-            }
+    // Scale-aware regularization to avoid singular matrix issues
+    let mut a_reg = a.clone();
+    let mut scale = 0.0_f64;
+    for i in 0..n {
+        scale = scale.max(a[[i, i]].abs());
+    }
+    if scale == 0.0 {
+        for v in a.iter() {
+            scale = scale.max(v.abs());
         }
     }
+    let eps = 1e-10 * if scale > 0.0 { scale } else { 1.0 };
+    for i in 0..n {
+        a_reg[[i, i]] += eps;
+    }
 
-    // Back substitution
-    let mut x = Array2::zeros((n, k));
-    for col in (0..n).rev() {
-        let pivot = aug[[col, col]];
-        if pivot.abs() < 1e-30 {
-            continue;
-        }
+    // Try LU factorization, solve all columns at once via per-column solve
+    if let Ok(lu) = a_reg.factorize() {
+        let mut x = Array2::zeros((n, k));
+        let mut all_ok = true;
         for j in 0..k {
-            let mut sum = aug[[col, n + j]];
-            for row in (col + 1)..n {
-                sum -= aug[[col, row]] * x[[row, j]];
+            let b_col = b.column(j).to_owned();
+            match lu.solve(&b_col) {
+                Ok(x_col) => x.column_mut(j).assign(&x_col),
+                Err(_) => { all_ok = false; break; }
             }
-            x[[col, j]] = sum / pivot;
         }
+        if all_ok { return x; }
     }
 
-    x
+    // Fallback: SVD least-squares for all columns
+    match a_reg.least_squares(b) {
+        Ok(result) => result.solution,
+        Err(_) => Array2::zeros((n, k)),
+    }
 }
 
 // Helper functions
@@ -364,12 +344,9 @@ fn compute_infea_set(x: &Array2<f64>, pass_set: &Array2<bool>) -> Array2<bool> {
 }
 
 fn sum_columns_bool(a: &Array2<bool>) -> Array1<i32> {
-    let k = a.ncols();
-    let mut result = Array1::zeros(k);
-    for col in 0..k {
-        result[col] = a.column(col).iter().filter(|&&v| v).count() as i32;
-    }
-    result
+    a.axis_iter(Axis(1))
+        .map(|col| col.iter().filter(|&&v| v).count() as i32)
+        .collect()
 }
 
 fn select_columns(a: &Array2<f64>, cols: &[usize]) -> Array2<f64> {
