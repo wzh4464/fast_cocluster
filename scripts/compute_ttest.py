@@ -94,7 +94,7 @@ def main():
 
     for r in all_results:
         if not r["significant_0.01"]:
-            winner = "N/S"
+            winner = "non-significant"
         elif r["dimerge_wins"]:
             winner = "DiMergeCo"
         else:
