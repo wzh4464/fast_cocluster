@@ -86,8 +86,9 @@ fn test_hierarchical_merger_union_strategy() {
     let result = merger.execute_parallel(partition_results, &matrix);
 
     assert!(result.is_ok());
-    let merged = result.unwrap();
+    let (merged, metrics) = result.unwrap();
     assert!(!merged.is_empty());
+    assert!(!metrics.is_empty());
 }
 
 #[test]
@@ -250,7 +251,7 @@ fn test_merge_strategies_comparison() {
         parallel_level: 1,
     };
     let union_merger = HierarchicalMerger::new(union_config);
-    let union_result = union_merger.execute_parallel(partition_results.clone(), &matrix).unwrap();
+    let (union_result, _union_metrics) = union_merger.execute_parallel(partition_results.clone(), &matrix).unwrap();
 
     // Test Adaptive strategy
     let adaptive_config = HierarchicalMergeConfig {
@@ -260,7 +261,7 @@ fn test_merge_strategies_comparison() {
         parallel_level: 1,
     };
     let adaptive_merger = HierarchicalMerger::new(adaptive_config);
-    let adaptive_result = adaptive_merger.execute_parallel(partition_results.clone(), &matrix).unwrap();
+    let (adaptive_result, _adaptive_metrics) = adaptive_merger.execute_parallel(partition_results.clone(), &matrix).unwrap();
 
     // Both should produce results
     assert!(!union_result.is_empty());
