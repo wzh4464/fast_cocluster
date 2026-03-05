@@ -1,0 +1,189 @@
+{
+  "timestamp": "2026-03-05T03:04:32Z",
+  "tool": "Rust DiMergeCo ablation_merge_strategy",
+  "datasets": {
+    "classic4_tp10": {
+      "dataset": "classic4",
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "threads": 16,
+      "baseline_scc": {
+        "nmi": 0.7756,
+        "ari": 0.7432,
+        "time_s": 2.702
+      },
+      "strategies": {
+        "Adaptive (Ours)": {
+          "nmi": 0.7600,
+          "ari": 0.7197,
+          "coclusters": 160,
+          "merge_time_s": 0.006,
+          "total_time_s": 4.243
+        },
+        "Union": {
+          "nmi": 0.7549,
+          "ari": 0.7032,
+          "coclusters": 160,
+          "merge_time_s": 0.005,
+          "total_time_s": 2.975
+        },
+        "Intersection(0.3)": {
+          "nmi": 0.0000,
+          "ari": 0.0000,
+          "coclusters": 0,
+          "merge_time_s": 0.016,
+          "total_time_s": 3.683
+        },
+        "Intersection(0.5)": {
+          "nmi": 0.0000,
+          "ari": 0.0000,
+          "coclusters": 0,
+          "merge_time_s": 0.005,
+          "total_time_s": 4.429
+        },
+        "Weighted(0.7/0.3)": {
+          "nmi": 0.7285,
+          "ari": 0.6086,
+          "coclusters": 160,
+          "merge_time_s": 0.002,
+          "total_time_s": 3.981
+        },
+        "Weighted(0.5/0.5)": {
+          "nmi": 0.7262,
+          "ari": 0.6207,
+          "coclusters": 160,
+          "merge_time_s": 0.002,
+          "total_time_s": 3.266
+        }
+      }
+    },
+    "classic4_tp30": {
+      "dataset": "classic4",
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 30,
+      "threads": 16,
+      "baseline_scc": {
+        "nmi": 0.7550,
+        "ari": 0.6616,
+        "time_s": 2.619
+      },
+      "strategies": {
+        "Adaptive (Ours)": {
+          "nmi": 0.7585,
+          "ari": 0.6879,
+          "coclusters": 480,
+          "merge_time_s": 0.015,
+          "total_time_s": 9.294
+        },
+        "Union": {
+          "nmi": 0.7456,
+          "ari": 0.6568,
+          "coclusters": 480,
+          "merge_time_s": 0.009,
+          "total_time_s": 9.865
+        },
+        "Intersection(0.3)": {
+          "nmi": 0.0000,
+          "ari": 0.0000,
+          "coclusters": 0,
+          "merge_time_s": 0.013,
+          "total_time_s": 10.935
+        },
+        "Intersection(0.5)": {
+          "nmi": 0.0000,
+          "ari": 0.0000,
+          "coclusters": 0,
+          "merge_time_s": 0.013,
+          "total_time_s": 7.779
+        },
+        "Weighted(0.7/0.3)": {
+          "nmi": 0.7603,
+          "ari": 0.6912,
+          "coclusters": 480,
+          "merge_time_s": 0.009,
+          "total_time_s": 9.211
+        },
+        "Weighted(0.5/0.5)": {
+          "nmi": 0.7512,
+          "ari": 0.6668,
+          "coclusters": 480,
+          "merge_time_s": 0.008,
+          "total_time_s": 10.236
+        }
+      }
+    },
+    "bcw_tp10": {
+      "dataset": "bcw",
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "threads": 16,
+      "baseline_scc": {
+        "nmi": 0.4911,
+        "ari": 0.6079,
+        "time_s": 0.161
+      },
+      "strategies": {
+        "Adaptive (Ours)": {
+          "nmi": 0.4668,
+          "ari": 0.5860,
+          "coclusters": 80,
+          "merge_time_s": 0.000,
+          "total_time_s": 0.065
+        },
+        "Union": {
+          "nmi": 0.4668,
+          "ari": 0.5860,
+          "coclusters": 80,
+          "merge_time_s": 0.002,
+          "total_time_s": 0.154
+        },
+        "Intersection(0.3)": {
+          "nmi": 0.0000,
+          "ari": 0.0000,
+          "coclusters": 0,
+          "merge_time_s": 0.001,
+          "total_time_s": 0.142
+        },
+        "Intersection(0.5)": {
+          "nmi": 0.0000,
+          "ari": 0.0000,
+          "coclusters": 0,
+          "merge_time_s": 0.001,
+          "total_time_s": 0.281
+        },
+        "Weighted(0.7/0.3)": {
+          "nmi": 0.4668,
+          "ari": 0.5860,
+          "coclusters": 80,
+          "merge_time_s": 0.008,
+          "total_time_s": 0.204
+        },
+        "Weighted(0.5/0.5)": {
+          "nmi": 0.4668,
+          "ari": 0.5860,
+          "coclusters": 80,
+          "merge_time_s": 0.002,
+          "total_time_s": 0.151
+        }
+      }
+    }
+  },
+  "comparison_with_python": {
+    "note": "Python results from baselines/results/classic4_merge_ablation.json and bcw_merge_ablation.json use different strategy names. Mapping: Python 'Union' = Rust 'Union', Python 'Centralized' ~ Rust 'Adaptive'. Python strategies Hierarchical/Random-pair/Greedy-overlap have no direct Rust equivalents; Rust adds Intersection and Weighted variants.",
+    "classic4_python_means": {
+      "Hierarchical_M1": { "nmi": 0.199, "ari": 0.138 },
+      "Random_pair_M2": { "nmi": 0.318, "ari": 0.263 },
+      "Centralized_M3": { "nmi": 0.739, "ari": 0.647 },
+      "Greedy_overlap_M4": { "nmi": 0.038, "ari": 0.023 },
+      "Union_M5": { "nmi": 0.739, "ari": 0.646 }
+    },
+    "classic4_rust_tp10": {
+      "Adaptive": { "nmi": 0.7600, "ari": 0.7197 },
+      "Union": { "nmi": 0.7549, "ari": 0.7032 }
+    },
+    "summary": "Rust Adaptive (NMI=0.760, ARI=0.720) and Union (NMI=0.755, ARI=0.703) on Classic4 T_p=10 both exceed Python Centralized/Union means (NMI~0.739, ARI~0.647). Intersection strategies produce 0 co-clusters (too aggressive filtering). Weighted strategies slightly underperform Adaptive but remain competitive."
+  }
+}
