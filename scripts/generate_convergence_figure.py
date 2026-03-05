@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Generate convergence figure for the hierarchical merge.
 
-Reads merge_round_metrics from a JSON file (produced by running DiMergeCo
-with RUST_LOG=info and capturing the per-round log lines, or from a dedicated
-JSON output) and plots the objective J (avg merge score) and cluster count
+Reads merge_round_metrics from a JSON file (produced by a dedicated JSON
+output mode of DiMergeCo or by post-processing captured per-round log lines
+into JSON) and plots the objective J (avg merge score) and cluster count
 vs merge round.
 
 Usage:
@@ -27,7 +27,6 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 def load_metrics(path: str) -> list[dict]:
@@ -54,6 +53,9 @@ def main():
     if not metrics:
         print("No merge round metrics found.", file=sys.stderr)
         sys.exit(1)
+
+    # Ensure metrics are ordered by round so the x-axis is monotonically increasing
+    metrics = sorted(metrics, key=lambda m: m["round"])
 
     rounds = [m["round"] for m in metrics]
     num_clusters = [m["num_clusters"] for m in metrics]

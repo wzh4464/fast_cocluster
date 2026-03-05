@@ -111,13 +111,25 @@ impl HierarchicalMerger {
         level_data
             .into_iter()
             .map(|(depth, entries)| {
-                let num_merges = entries.iter().filter(|(s, _)| *s > 0.0).count();
                 let total_clusters: usize = entries.iter().map(|(_, c)| c).sum();
-                let scores: Vec<f64> = entries.iter().map(|(s, _)| *s).filter(|s| *s > 0.0).collect();
-                let avg_score = if scores.is_empty() {
+
+                // Leaf level (round 0): no merges occurred
+                if depth == 0 {
+                    return MergeRoundMetric {
+                        round: depth,
+                        num_clusters: total_clusters,
+                        avg_merge_score: 0.0,
+                        num_merges: 0,
+                    };
+                }
+
+                // Internal levels: every entry is a merge, count all regardless of score
+                let num_merges = entries.len();
+                let sum_scores: f64 = entries.iter().map(|(s, _)| *s).sum();
+                let avg_score = if num_merges == 0 {
                     0.0
                 } else {
-                    scores.iter().sum::<f64>() / scores.len() as f64
+                    sum_scores / num_merges as f64
                 };
                 MergeRoundMetric {
                     round: depth,
