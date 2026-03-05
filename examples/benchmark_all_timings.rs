@@ -263,8 +263,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // -----------------------------------------------------------------------
     // 2. SpectralCC (full bipartite Laplacian SVD)
+    //    Note: full SVD on 6460x4667 can take >30min. Skip with SKIP_SPECTRAL=1.
     // -----------------------------------------------------------------------
-    {
+    if std::env::var("SKIP_SPECTRAL").is_ok() {
+        println!("\nSkipping SpectralCC (SKIP_SPECTRAL set)");
+        results.push(BenchmarkResult {
+            method: "SpectralCC".to_string(),
+            time_s: None,
+            nmi: None,
+            ari: None,
+            t_p: None,
+            blocks: None,
+            error: Some("skipped (SKIP_SPECTRAL)".to_string()),
+        });
+    } else {
         println!("\nRunning SpectralCC...");
         let spectral = SpectralCocluster::new(k, k);
         let start = Instant::now();
