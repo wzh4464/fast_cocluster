@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-03-05T11:02:44.470190",
+  "results": [
+    {
+      "dataset": "bcw",
+      "method": "SCC",
+      "seed": 0,
+      "nmi": 0.4911,
+      "ari": 0.6079,
+      "time_s": 0.4774,
+      "peak_rss_mb": 123.8,
+      "error": null
+    },
+    {
+      "dataset": "bcw",
+      "method": "SpectralCC",
+      "seed": 0,
+      "nmi": 0.0396,
+      "ari": 0.0066,
+      "time_s": 0.0626,
+      "peak_rss_mb": 126.0,
+      "error": null
+    },
+    {
+      "dataset": "bcw",
+      "method": "DiMergeCo-SCC",
+      "seed": 0,
+      "nmi": 0.4681,
+      "ari": 0.5859,
+      "time_s": 1.2523,
+      "peak_rss_mb": 171.0,
+      "error": null
+    }
+  ]
+}

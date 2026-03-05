@@ -1,0 +1,217 @@
+{
+  "timestamp": "2026-03-05T11:50:00",
+  "measurement_method": "/usr/bin/time -v (peak RSS) and /proc/<pid>/status VmHWM for long-running methods",
+  "python_baseline_rss_mb": 123,
+  "notes": [
+    "Python interpreter + numpy/scipy/sklearn imports use ~123MB baseline RSS",
+    "BCW matrix (569x30) is only ~0.13MB; all BCW peak RSS is dominated by Python overhead",
+    "Classic4 matrix (6460x4667) is ~242MB dense float64",
+    "NMF methods (NBVD, ONM3F, ONMTF, PNMTF) allocate large intermediate dense matrices on Classic4",
+    "VmHWM values from /proc/pid/status used for methods too slow to complete (killed after peak stabilized)",
+    "DiMergeCo partitions data into sub-blocks, reducing per-method peak memory for NMF atoms"
+  ],
+  "datasets": {
+    "classic4": {
+      "shape": [6460, 4667],
+      "dense_size_mb": 241.8,
+      "n_clusters": 4
+    },
+    "bcw": {
+      "shape": [569, 30],
+      "dense_size_mb": 0.13,
+      "n_clusters": 2
+    }
+  },
+  "results": [
+    {
+      "dataset": "classic4",
+      "method": "SCC",
+      "peak_rss_mb": 370,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.7905,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "classic4",
+      "method": "SpectralCC",
+      "peak_rss_mb": 374,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.4315,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "classic4",
+      "method": "NBVD",
+      "peak_rss_mb": 1659,
+      "measurement": "/proc/pid/status VmHWM (process killed after peak stabilized)",
+      "nmi": null,
+      "seed": 0,
+      "completed": false
+    },
+    {
+      "dataset": "classic4",
+      "method": "ONM3F",
+      "peak_rss_mb": 1605,
+      "measurement": "/proc/pid/status VmHWM (process killed after peak stabilized)",
+      "nmi": null,
+      "seed": 0,
+      "completed": false
+    },
+    {
+      "dataset": "classic4",
+      "method": "ONMTF",
+      "peak_rss_mb": 1601,
+      "measurement": "/proc/pid/status VmHWM (process killed after peak stabilized)",
+      "nmi": null,
+      "seed": 0,
+      "completed": false
+    },
+    {
+      "dataset": "classic4",
+      "method": "PNMTF",
+      "peak_rss_mb": 1631,
+      "measurement": "/proc/pid/status VmHWM (process killed after peak stabilized)",
+      "nmi": null,
+      "seed": 0,
+      "completed": false
+    },
+    {
+      "dataset": "classic4",
+      "method": "FNMF",
+      "peak_rss_mb": 351,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.5784,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "classic4",
+      "method": "DiMergeCo-SCC",
+      "peak_rss_mb": 496,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.7376,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "classic4",
+      "method": "DiMergeCo-PNMTF",
+      "peak_rss_mb": 777,
+      "measurement": "/proc/pid/status VmHWM (process killed after peak stabilized)",
+      "nmi": null,
+      "seed": 0,
+      "completed": false
+    },
+    {
+      "dataset": "bcw",
+      "method": "SCC",
+      "peak_rss_mb": 128,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.4911,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "bcw",
+      "method": "SpectralCC",
+      "peak_rss_mb": 132,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.0,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "bcw",
+      "method": "NBVD",
+      "peak_rss_mb": 117,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.025,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "bcw",
+      "method": "ONM3F",
+      "peak_rss_mb": 121,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.0532,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "bcw",
+      "method": "ONMTF",
+      "peak_rss_mb": 117,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.0328,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "bcw",
+      "method": "PNMTF",
+      "peak_rss_mb": 117,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.4423,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "bcw",
+      "method": "FNMF",
+      "peak_rss_mb": 116,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.3413,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "bcw",
+      "method": "DiMergeCo-SCC",
+      "peak_rss_mb": 176,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.4681,
+      "seed": 0,
+      "completed": true
+    },
+    {
+      "dataset": "bcw",
+      "method": "DiMergeCo-PNMTF",
+      "peak_rss_mb": 131,
+      "measurement": "/usr/bin/time -v",
+      "nmi": 0.4633,
+      "seed": 0,
+      "completed": true
+    }
+  ],
+  "summary_classic4_mb": {
+    "SCC": 370,
+    "SpectralCC": 374,
+    "NBVD": 1659,
+    "ONM3F": 1605,
+    "ONMTF": 1601,
+    "PNMTF": 1631,
+    "FNMF": 351,
+    "DiMergeCo-SCC": 496,
+    "DiMergeCo-PNMTF": 777
+  },
+  "summary_bcw_mb": {
+    "SCC": 128,
+    "SpectralCC": 132,
+    "NBVD": 117,
+    "ONM3F": 121,
+    "ONMTF": 117,
+    "PNMTF": 117,
+    "FNMF": 116,
+    "DiMergeCo-SCC": 176,
+    "DiMergeCo-PNMTF": 131
+  },
+  "paper_table_notes": {
+    "format": "Peak RSS (MB) measured with /usr/bin/time -v per single-process run",
+    "classic4_SCC_paper_value": 363,
+    "bcw_note": "All BCW methods use ~116-176 MB, dominated by Python+library overhead (~123MB). The actual data (569x30) is only 0.13MB.",
+    "nmf_classic4_note": "NBVD/ONM3F/ONMTF/PNMTF all use ~1600MB on Classic4 due to dense intermediate matrices. These are VmHWM from /proc since methods were too slow to complete."
+  }
+}
