@@ -80,7 +80,7 @@ fn extract_labels(submatrices: &[Submatrix<'_, f64>], n_rows: usize, k: usize) -
         }
     }
     let dataset = DatasetBase::from(membership);
-    let model = KMeans::params(k).max_n_iterations(300).fit(&dataset).expect("K-means failed");
+    let model = KMeans::params(k).max_n_iterations(200).fit(&dataset).expect("K-means failed");
     model.predict(dataset).targets.to_vec()
 }
 

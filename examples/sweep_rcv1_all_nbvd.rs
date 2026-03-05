@@ -74,7 +74,7 @@ fn extract_labels(submatrices: &[Submatrix<'_, f64>], n_rows: usize, k: usize) -
         }
     }
     let dataset = DatasetBase::from(membership);
-    let model = KMeans::params(k).max_n_iterations(300).fit(&dataset).expect("K-means failed");
+    let model = KMeans::params(k).max_n_iterations(200).fit(&dataset).expect("K-means failed");
     model.predict(dataset).targets.to_vec()
 }
 
@@ -83,7 +83,7 @@ fn make_config(k: usize) -> TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 20,
-        n_init: 1,
+        n_init: 3,
         tol: 1e-9,
         seed: None,
     }

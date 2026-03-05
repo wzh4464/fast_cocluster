@@ -44,7 +44,7 @@ fn extract_labels(submatrices: &[fast_cocluster::submatrix::Submatrix<'_, f64>],
         }
     }
     let dataset = linfa::DatasetBase::from(membership);
-    let model = KMeans::params(k).max_n_iterations(300).fit(&dataset).expect("K-means failed");
+    let model = KMeans::params(k).max_n_iterations(200).fit(&dataset).expect("K-means failed");
     model.predict(dataset).targets.to_vec()
 }
 

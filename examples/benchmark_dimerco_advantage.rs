@@ -52,7 +52,7 @@ fn main() {
     println!("  Shape: {} × {}", rows, cols);
     println!("  Memory: {:.2} GB\n", (rows * cols * 8) as f64 / 1e9);
 
-    let matrix = Matrix::new(array.clone());
+    let matrix = Matrix::new(array);
     let k = 4;
     let num_threads = 16;
     let tp = 20;
@@ -68,7 +68,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
-        let (standalone_nmi, standalone_time) = match clusterer.cluster_local(&array) {
+        let (standalone_nmi, standalone_time) = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 (calculate_nmi(&true_labels, &pred), start.elapsed().as_secs_f64())
@@ -101,7 +101,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = NbvdClusterer::with_config(make_config(k));
-        let (standalone_nmi, standalone_time) = match clusterer.cluster_local(&array) {
+        let (standalone_nmi, standalone_time) = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 (calculate_nmi(&true_labels, &pred), start.elapsed().as_secs_f64())
@@ -134,7 +134,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = Onm3fClusterer::with_config(make_config(k));
-        let (standalone_nmi, standalone_time) = match clusterer.cluster_local(&array) {
+        let (standalone_nmi, standalone_time) = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 (calculate_nmi(&true_labels, &pred), start.elapsed().as_secs_f64())
@@ -167,7 +167,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1);
-        let (standalone_nmi, standalone_time) = match clusterer.cluster_local(&array) {
+        let (standalone_nmi, standalone_time) = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 (calculate_nmi(&true_labels, &pred), start.elapsed().as_secs_f64())
@@ -206,7 +206,7 @@ fn make_config(k: usize) -> TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 20,
-        n_init: 1,
+        n_init: 3,
         tol: 1e-9,
         seed: None,
     }
@@ -222,7 +222,7 @@ fn extract_labels(submatrices: &[Submatrix<'_, f64>], n_rows: usize, k: usize) -
         }
     }
     let dataset = DatasetBase::from(membership);
-    let model = KMeans::params(k).max_n_iterations(300).fit(&dataset).expect("K-means failed");
+    let model = KMeans::params(k).max_n_iterations(200).fit(&dataset).expect("K-means failed");
     model.predict(dataset).targets.to_vec()
 }
 
