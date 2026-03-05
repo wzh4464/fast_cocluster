@@ -93,7 +93,12 @@ def main():
     print("-" * len(header))
 
     for r in all_results:
-        winner = "DiMergeCo" if r["dimerge_wins"] else r["baseline_method"]
+        if not r["significant_0.01"]:
+            winner = "N/S"
+        elif r["dimerge_wins"]:
+            winner = "DiMergeCo"
+        else:
+            winner = r["baseline_method"]
         sig = "YES" if r["significant_0.01"] else "no"
         print(
             f"{r['dataset']:<10} "
