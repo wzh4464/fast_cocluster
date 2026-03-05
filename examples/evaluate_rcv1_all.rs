@@ -106,7 +106,7 @@ fn main() {
     let (rows, cols) = (array.nrows(), array.ncols());
     println!("RCV1-all: {} x {} ({:.2} GB)", rows, cols, (rows * cols * 8) as f64 / 1e9);
 
-    let matrix = Matrix::new(array.clone());
+    let matrix = Matrix::new(array);
     let k = 4;
     let num_threads = 16;
     let tp = 20;  // optimized from sweep (was 10)
@@ -121,7 +121,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
@@ -159,7 +159,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = NbvdClusterer::with_config(make_config(k));
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
@@ -197,7 +197,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = Onm3fClusterer::with_config(make_config(k));
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
@@ -235,7 +235,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1);
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
@@ -273,7 +273,7 @@ fn main() {
     {
         let start = Instant::now();
         let clusterer = FnmfClusterer::new(k, 50);
-        let standalone_result = match clusterer.cluster_local(&array) {
+        let standalone_result = match clusterer.cluster_local(&matrix.data) {
             Ok(subs) => {
                 let pred = extract_labels(&subs, rows, k);
                 Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))

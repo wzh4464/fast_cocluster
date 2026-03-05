@@ -5,7 +5,6 @@
 
 use fast_cocluster::atom::nbvd::NbvdClusterer;
 use fast_cocluster::atom::tri_factor_base::TriFactorConfig;
-use fast_cocluster::dimerge_co::parallel_coclusterer::LocalClusterer;
 use fast_cocluster::dimerge_co::*;
 use fast_cocluster::matrix::Matrix;
 use fast_cocluster::submatrix::Submatrix;

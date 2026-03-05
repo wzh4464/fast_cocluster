@@ -5,14 +5,12 @@
 /// - NBVD, ONM3F, ONMTF, PNMTF, FNMF (atom NMF methods)
 ///
 /// Usage:
-///   cargo run --release --example evaluate_dimerge_atom -- [train|test|all]
+///   cargo run --release --example evaluate_dimerge_atom -- [classic4|c4|classic4-small|c4s|rcv1|train|all]
 
 use fast_cocluster::atom::{
     fnmf::FnmfClusterer,
     nbvd::NbvdClusterer,
     onm3f::Onm3fClusterer,
-    onmtf::OnmtfClusterer,
-    pnmtf::PnmtfClusterer,
     tri_factor_base::TriFactorConfig,
 };
 use fast_cocluster::dimerge_co::parallel_coclusterer::LocalClusterer;
@@ -200,7 +198,6 @@ fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
         (rows * cols * 8) as f64 / 1e9
     );
 
-    let matrix = Matrix::new(array.clone());
     let k = 4;
     let num_threads = 16;
     let tp = 10;
@@ -228,6 +225,9 @@ fn evaluate_dataset(dataset_name: &str, data_path: &str, labels_path: &str) {
             Err(e) => println!("spectral(standalone) ERROR: {}", e),
         }
     }
+
+    // Move array into Matrix to avoid clone (saves GBs for large datasets)
+    let matrix = Matrix::new(array);
 
     // ─── DiMergeCo + each atom method ───────────────────────────────
     println!("\n--- DiMergeCo ({}x{} blocks, T_p={}) + Local Clusterers ---", m_blocks, n_blocks, tp);
