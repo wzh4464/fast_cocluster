@@ -1,0 +1,32 @@
+{
+  "hardware": "current",
+  "hardware_info": "144 cores, Linux 6.8.0-87-generic",
+  "date": "2026-03-05",
+  "dataset": "classic4_paper (6460x4667)",
+  "seed": 0,
+  "notes": "SpectralCC/SCC-Dhillon/FNMF/NBVD/DiMergeCo+SCC run on idle machine. PNMTF ran under contention (3 parallel NMF processes). ONM3F/ONMTF killed after 60+ min under contention; estimated ~1000-1400s on idle machine based on NBVD baseline.",
+  "results": [
+    {"method": "SpectralCC", "time_s": 0.3, "nmi": 0.4315, "ari": 0.2723, "condition": "idle"},
+    {"method": "SCC-Dhillon", "time_s": 0.2, "nmi": 0.7905, "ari": 0.7491, "condition": "idle"},
+    {"method": "FNMF", "time_s": 1.1, "nmi": 0.5784, "ari": 0.4548, "condition": "idle"},
+    {"method": "NBVD", "time_s": 1024.8, "nmi": 0.7224, "ari": 0.6306, "condition": "idle"},
+    {"method": "PNMTF", "time_s": 1383.9, "nmi": 0.546, "ari": 0.428, "condition": "contention_3_parallel_nmf"},
+    {"method": "ONM3F", "time_s": null, "nmi": null, "ari": null, "condition": "killed_after_60min_contention", "estimated_time_s": "~1000-1400"},
+    {"method": "ONMTF", "time_s": null, "nmi": null, "ari": null, "condition": "killed_after_60min_contention", "estimated_time_s": "~1000-1400"},
+    {"method": "DiMergeCo+SCC-Dhillon", "time_s": 13.93, "nmi": 0.7366, "ari": 0.6511, "condition": "idle", "t_p": 10, "blocks": "2x2"}
+  ],
+  "paper_table_notes": {
+    "location": "/home/jie/big-cocluster-paper/src/root.tex line 842",
+    "current_values": {
+      "SCC": "2.6 (with randomized SVD, dagger)",
+      "NMTF_NBVD": "298.7 (todo marker)",
+      "ONMTF_Ding": "498.4 (todo marker)",
+      "WC-NMTF": "198.8 (todo marker)",
+      "FNMTF": "275.1 (todo marker)",
+      "PNMTF": "303.7 (todo marker)",
+      "DiMergeCo-SCC": "6.7 (with randomized SVD, dagger)",
+      "DiMergeCo-PNMTF": "242.8 (todo marker)"
+    },
+    "values_needing_update": "All entries with \\todo{} markers on line 842 need updating. The Python baselines (NBVD=1024.8s, PNMTF~1384s, ONM3F/ONMTF~1000-1400s) are much slower than the old values (298-498s) because the old values were from different hardware or different iteration counts. The fast methods (SCC=0.2s, FNMF=1.1s) are similar to old. DiMergeCo-SCC with t_p=10 is 13.9s. Note: the paper table uses t_p=30 and the Rust implementation, so the Python DiMergeCo time is not directly comparable."
+  }
+}
