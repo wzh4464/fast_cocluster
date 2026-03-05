@@ -212,7 +212,7 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
 
             // Phase 3: Hierarchical Merging (once, on all collected co-clusters)
             let merging_start = Instant::now();
-            let final_result = self.merger.execute_parallel(all_local_results, matrix)
+            let (final_result, merge_round_metrics) = self.merger.execute_parallel(all_local_results, matrix)
                 .map_err(DiMergeCoError::Merge)?;
             let merging_ms = merging_start.elapsed().as_millis() as u64;
 
@@ -220,6 +220,12 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
                 "DiMergeCo Phase 3: Merged to {} final co-clusters [{} ms]",
                 final_result.len(), merging_ms
             );
+            for m in &merge_round_metrics {
+                log::info!(
+                    "  merge round {}: {} clusters, avg_score={:.4}, {} merges",
+                    m.round, m.num_clusters, m.avg_merge_score, m.num_merges
+                );
+            }
 
             let total_ms = start_time.elapsed().as_millis() as u64;
 
@@ -235,6 +241,7 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
                     merging_ms,
                     total_ms,
                 },
+                merge_round_metrics,
             };
 
             Ok((final_result, stats))

@@ -18,6 +18,7 @@
 
 use crate::submatrix::Submatrix;
 use ndarray::Array2;
+use serde::Serialize;
 use std::error::Error;
 use std::fmt;
 
@@ -263,6 +264,24 @@ impl ParallelConfig {
     }
 }
 
+/// Metric recorded at each round (tree level) of the hierarchical merge.
+///
+/// Round 0 = leaf level (individual partition results), round 1 = first
+/// pairwise merge, ..., round D = root.  The objective `J` is the average
+/// merge score across all merges at that level; `num_clusters` is the total
+/// number of co-clusters after the level completes.
+#[derive(Debug, Clone, Serialize)]
+pub struct MergeRoundMetric {
+    /// Tree level (0 = leaves, increases toward root)
+    pub round: usize,
+    /// Number of co-clusters after this merge round
+    pub num_clusters: usize,
+    /// Average merge score (objective J) at this level
+    pub avg_merge_score: f64,
+    /// Number of merge operations performed at this level
+    pub num_merges: usize,
+}
+
 /// Statistics from a DiMergeCo run
 #[derive(Debug, Clone)]
 pub struct DiMergeCoStats {
@@ -278,6 +297,8 @@ pub struct DiMergeCoStats {
     pub final_clusters: usize,
     /// Time spent in each phase (ms)
     pub phase_times: PhaseTimings,
+    /// Per-round metrics from hierarchical merge (empty if not available)
+    pub merge_round_metrics: Vec<MergeRoundMetric>,
 }
 
 /// Timing information for each DiMergeCo phase
@@ -539,6 +560,7 @@ mod tests {
             total_local_clusters: 40,
             final_clusters: 10,
             phase_times,
+            merge_round_metrics: vec![],
         };
 
         assert_eq!(stats.preservation_prob, 0.95);

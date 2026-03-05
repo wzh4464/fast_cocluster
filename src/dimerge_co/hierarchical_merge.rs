@@ -61,14 +61,72 @@ impl HierarchicalMerger {
         self.build_tree_recursive(padded_results, 0)
     }
 
-    /// Execute the merge and return final result
+    /// Execute the merge and return final result together with per-round metrics.
     pub fn execute_parallel<'a>(
         &self,
         partition_results: Vec<Vec<Submatrix<'a, f64>>>,
         original_matrix: &'a Matrix<f64>,
-    ) -> Result<Vec<Submatrix<'a, f64>>, MergeError> {
+    ) -> Result<(Vec<Submatrix<'a, f64>>, Vec<MergeRoundMetric>), MergeError> {
         let tree = self.build_merge_tree(partition_results)?;
-        Ok(tree.cocluster_result)
+        let metrics = Self::collect_round_metrics(&tree);
+        Ok((tree.cocluster_result, metrics))
+    }
+
+    /// Walk the merge tree and collect per-level (round) metrics.
+    ///
+    /// Level 0 = leaf partitions, level D = root.  For each level we record
+    /// the number of internal-node merges, the average merge score, and the
+    /// total cluster count produced.
+    fn collect_round_metrics(root: &MergeNode) -> Vec<MergeRoundMetric> {
+        use std::collections::BTreeMap;
+
+        // (level) -> Vec<(merge_score, cluster_count)>
+        let mut level_data: BTreeMap<usize, Vec<(f64, usize)>> = BTreeMap::new();
+
+        fn walk(node: &MergeNode, level_data: &mut BTreeMap<usize, Vec<(f64, usize)>>) {
+            let depth = node.metadata.depth;
+            if let Some(score) = node.metadata.merge_score {
+                // Internal node – record its merge
+                level_data
+                    .entry(depth)
+                    .or_default()
+                    .push((score, node.cocluster_result.len()));
+            } else {
+                // Leaf – record cluster count with score 0
+                level_data
+                    .entry(depth)
+                    .or_default()
+                    .push((0.0, node.cocluster_result.len()));
+            }
+            if let Some(ref left) = node.left {
+                walk(left, level_data);
+            }
+            if let Some(ref right) = node.right {
+                walk(right, level_data);
+            }
+        }
+
+        walk(root, &mut level_data);
+
+        level_data
+            .into_iter()
+            .map(|(depth, entries)| {
+                let num_merges = entries.iter().filter(|(s, _)| *s > 0.0).count();
+                let total_clusters: usize = entries.iter().map(|(_, c)| c).sum();
+                let scores: Vec<f64> = entries.iter().map(|(s, _)| *s).filter(|s| *s > 0.0).collect();
+                let avg_score = if scores.is_empty() {
+                    0.0
+                } else {
+                    scores.iter().sum::<f64>() / scores.len() as f64
+                };
+                MergeRoundMetric {
+                    round: depth,
+                    num_clusters: total_clusters,
+                    avg_merge_score: avg_score,
+                    num_merges,
+                }
+            })
+            .collect()
     }
 
     /// Pad results to next power of 2 for balanced binary tree
