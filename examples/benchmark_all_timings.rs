@@ -182,9 +182,11 @@ fn make_tri_config(k: usize) -> TriFactorConfig {
         n_row_clusters: k,
         n_col_clusters: k,
         max_iter: 50,
+        inner_iter: 10,
         n_init: 1,
         tol: 1e-9,
         seed: Some(0),
+        timeout_secs: None,
     }
 }
 

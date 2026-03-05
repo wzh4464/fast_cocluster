@@ -56,6 +56,8 @@ pub struct DiMergeCoClusterer<L: LocalClusterer> {
     m_blocks: usize,
     /// Number of column blocks per random partition
     n_blocks: usize,
+    /// Base seed for reproducible random partitioning across runs
+    base_seed: u64,
 }
 
 impl<L: LocalClusterer> DiMergeCoClusterer<L> {
@@ -103,6 +105,7 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
             num_iterations: num_iterations.max(1),
             m_blocks: m_blocks.max(2),
             n_blocks: n_blocks.max(1), // n_blocks=1 = row-only partitioning (no column split)
+            base_seed: 0,
         })
     }
 
@@ -127,6 +130,13 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
             blocks,
             blocks,
         )
+    }
+
+    /// Set the base seed for random partitioning (default: 0).
+    /// Different base seeds produce different partition sequences across T_p iterations.
+    pub fn with_base_seed(mut self, seed: u64) -> Self {
+        self.base_seed = seed;
+        self
     }
 
     /// Compute optimal block grid dimension based on dataset size
@@ -205,7 +215,7 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
                         &matrix.data,
                         self.m_blocks,
                         self.n_blocks,
-                        iter as u64,
+                        self.base_seed.wrapping_mul(2654435761).wrapping_add(iter as u64),
                     ).map_err(DiMergeCoError::Partition)?;
 
                     let n_parts = partition_result.partitions.len();

@@ -1,12 +1,12 @@
-//! Ablation study: compare merge strategies for DiMergeCo
+//! Ablation study: compare merge strategies for DiMergeCo (10 seeds)
 //!
-//! Tests all 4 Rust merge strategies (Union, Intersection, Weighted, Adaptive)
-//! on Classic4 and BCW datasets, measuring NMI, ARI, and merge time.
+//! Tests all Rust merge strategies (Adaptive, Union, Intersection, Weighted)
+//! on Classic4 and BCW datasets with 10 random seeds each, measuring
+//! mean +/- std for NMI, ARI, and time.
 //!
-//! Since partition seeds are deterministic (iter_id), all strategies see the
-//! same local co-clusters — this isolates the effect of the merge strategy.
+//! Results saved to baselines/results/rust_merge_ablation_10seeds.json
 //!
-//! Run with: RUST_LOG=info cargo run --release --example ablation_merge_strategy
+//! Run with: RUST_LOG=warn cargo run --release --example ablation_merge_strategy
 
 use fast_cocluster::dimerge_co::*;
 use fast_cocluster::matrix::Matrix;
@@ -15,34 +15,40 @@ use fast_cocluster::submatrix::Submatrix;
 use linfa::prelude::*;
 use linfa_clustering::KMeans;
 use ndarray::Array2;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::time::Instant;
 
-/// Load Classic4 (6460 x 4667, k=4)
+const NUM_SEEDS: u64 = 10;
+
 fn load_classic4() -> Result<(Matrix<f64>, Vec<usize>, usize), Box<dyn std::error::Error>> {
     let array: Array2<f64> = ndarray_npy::read_npy("data/classic4_paper.npy")
         .map_err(|e| format!("Failed to load classic4_paper.npy: {}", e))?;
     let labels_array: ndarray::Array1<i64> = ndarray_npy::read_npy("data/classic4_paper_labels.npy")
         .map_err(|e| format!("Failed to load classic4_paper_labels.npy: {}", e))?;
-    let true_labels: Vec<usize> = labels_array.iter().map(|&x| x as usize).collect();
+    let true_labels: Vec<usize> = labels_array.iter().map(|&x| {
+        assert!(x >= 0, "Negative label in classic4_paper_labels.npy");
+        x as usize
+    }).collect();
     let matrix = Matrix::new(array);
     println!("Loaded Classic4: {} x {}, k=4", matrix.rows, matrix.cols);
     Ok((matrix, true_labels, 4))
 }
 
-/// Load BCW (569 x 30, k=2)
 fn load_bcw() -> Result<(Matrix<f64>, Vec<usize>, usize), Box<dyn std::error::Error>> {
     let array: Array2<f64> = ndarray_npy::read_npy("data/bcw.npy")
         .map_err(|e| format!("Failed to load bcw.npy: {}", e))?;
     let labels_array: ndarray::Array1<i64> = ndarray_npy::read_npy("data/bcw_labels.npy")
         .map_err(|e| format!("Failed to load bcw_labels.npy: {}", e))?;
-    let true_labels: Vec<usize> = labels_array.iter().map(|&x| x as usize).collect();
+    let true_labels: Vec<usize> = labels_array.iter().map(|&x| {
+        assert!(x >= 0, "Negative label in bcw_labels.npy");
+        x as usize
+    }).collect();
     let matrix = Matrix::new(array);
     println!("Loaded BCW: {} x {}, k=2", matrix.rows, matrix.cols);
     Ok((matrix, true_labels, 2))
 }
 
-/// Calculate NMI between true and predicted labels
 fn calculate_nmi(true_labels: &[usize], pred_labels: &[usize]) -> f64 {
     let n = true_labels.len() as f64;
     if n < 2.0 { return 0.0; }
@@ -82,7 +88,6 @@ fn calculate_nmi(true_labels: &[usize], pred_labels: &[usize]) -> f64 {
     if h_true + h_pred > 0.0 { 2.0 * mi / (h_true + h_pred) } else { 0.0 }
 }
 
-/// Calculate ARI between true and predicted labels
 fn calculate_ari(true_labels: &[usize], pred_labels: &[usize]) -> f64 {
     let n = true_labels.len();
     if n < 2 { return 0.0; }
@@ -111,7 +116,6 @@ fn calculate_ari(true_labels: &[usize], pred_labels: &[usize]) -> f64 {
     else { (sum_comb_nij - expected) / (max_index - expected) }
 }
 
-/// Extract document labels via consensus clustering (membership matrix + k-means)
 fn extract_labels<'a>(result: &[Submatrix<'a, f64>], n_docs: usize, k: usize) -> Vec<usize> {
     if result.is_empty() { return vec![0; n_docs]; }
 
@@ -132,10 +136,9 @@ fn extract_labels<'a>(result: &[Submatrix<'a, f64>], n_docs: usize, k: usize) ->
     predictions.targets.to_vec()
 }
 
-/// All merge strategy configs to test
 fn merge_strategies() -> Vec<(String, HierarchicalMergeConfig)> {
     vec![
-        ("Adaptive (Ours)".to_string(), HierarchicalMergeConfig {
+        ("Adaptive".to_string(), HierarchicalMergeConfig {
             merge_strategy: MergeStrategy::Adaptive,
             merge_threshold: 0.5,
             rescore_merged: true,
@@ -174,7 +177,64 @@ fn merge_strategies() -> Vec<(String, HierarchicalMergeConfig)> {
     ]
 }
 
-/// Run ablation on one dataset
+fn mean(vals: &[f64]) -> f64 {
+    if vals.is_empty() { return 0.0; }
+    vals.iter().sum::<f64>() / vals.len() as f64
+}
+
+fn std_dev(vals: &[f64]) -> f64 {
+    if vals.len() < 2 { return 0.0; }
+    let m = mean(vals);
+    let var = vals.iter().map(|v| (v - m).powi(2)).sum::<f64>() / (vals.len() - 1) as f64;
+    var.sqrt()
+}
+
+struct SeedResult {
+    nmi: f64,
+    ari: f64,
+    time_s: f64,
+    coclusters: usize,
+}
+
+fn run_strategy_seeds(
+    matrix: &Matrix<f64>,
+    true_labels: &[usize],
+    k: usize,
+    m_blocks: usize,
+    n_blocks: usize,
+    t_p: usize,
+    num_threads: usize,
+    config: &HierarchicalMergeConfig,
+) -> Result<Vec<SeedResult>, Box<dyn std::error::Error>> {
+    let mut results = Vec::with_capacity(NUM_SEEDS as usize);
+
+    for seed in 0..NUM_SEEDS {
+        let start = Instant::now();
+        let local_clusterer = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
+
+        let clusterer = DiMergeCoClusterer::new(
+            k, matrix.rows, 0.05, local_clusterer, config.clone(),
+            num_threads, t_p, m_blocks, n_blocks,
+        )?.with_base_seed(seed);
+
+        let result = clusterer.run(matrix)?;
+        let time_s = start.elapsed().as_secs_f64();
+
+        let pred_labels = extract_labels(&result.submatrices, matrix.rows, k);
+        let nmi = calculate_nmi(true_labels, &pred_labels);
+        let ari = calculate_ari(true_labels, &pred_labels);
+
+        results.push(SeedResult {
+            nmi,
+            ari,
+            time_s,
+            coclusters: result.submatrices.len(),
+        });
+    }
+
+    Ok(results)
+}
+
 fn run_ablation(
     name: &str,
     matrix: &Matrix<f64>,
@@ -184,13 +244,14 @@ fn run_ablation(
     n_blocks: usize,
     t_p: usize,
     num_threads: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<Value, Box<dyn std::error::Error>> {
     println!("\n{}", "=".repeat(80));
-    println!("ABLATION — {} ({}x{}, T_p={}, threads={})", name, m_blocks, n_blocks, t_p, num_threads);
+    println!("ABLATION -- {} ({}x{}, T_p={}, threads={}, {} seeds)",
+        name, m_blocks, n_blocks, t_p, num_threads, NUM_SEEDS);
     println!("{}", "=".repeat(80));
 
-    // Baseline: SVD on full matrix
-    {
+    // Baseline: SVD on full matrix (deterministic, single run)
+    let baseline_json = {
         let start = Instant::now();
         let clusterer = SVDClusterer::new(k, 0.1);
         let submatrices = clusterer.cluster(matrix)?;
@@ -205,34 +266,67 @@ fn run_ablation(
         let nmi = calculate_nmi(true_labels, &labels);
         let ari = calculate_ari(true_labels, &labels);
         println!("\n  Baseline SCC:  NMI={:.4}  ARI={:.4}  Time={:.3}s", nmi, ari, runtime);
-    }
 
-    println!("\n  {:<22} {:>8} {:>8} {:>10} {:>8} {:>8}",
-        "Strategy", "NMI", "ARI", "CoClusters", "MergeT", "TotalT");
+        json!({ "nmi": (nmi * 10000.0).round() / 10000.0,
+                "ari": (ari * 10000.0).round() / 10000.0,
+                "time_s": (runtime * 1000.0).round() / 1000.0 })
+    };
+
+    println!("\n  {:<22} {:>12} {:>12} {:>12} {:>12}",
+        "Strategy", "NMI", "ARI", "CoClusters", "Time(s)");
     println!("  {}", "-".repeat(72));
 
-    for (strategy_name, config) in merge_strategies() {
-        let start = Instant::now();
-        let local_clusterer = ClustererAdapter::new(SVDClusterer::new(k, 0.1));
+    let mut strategies_json = serde_json::Map::new();
 
-        let clusterer = DiMergeCoClusterer::new(
-            k, matrix.rows, 0.05, local_clusterer, config,
-            num_threads, t_p, m_blocks, n_blocks,
+    for (strategy_name, config) in merge_strategies() {
+        let seed_results = run_strategy_seeds(
+            matrix, true_labels, k, m_blocks, n_blocks, t_p, num_threads, &config,
         )?;
 
-        let result = clusterer.run(matrix)?;
-        let total_time = start.elapsed().as_secs_f64();
-        let merge_time = result.stats.phase_times.merging_ms as f64 / 1000.0;
+        let nmis: Vec<f64> = seed_results.iter().map(|r| r.nmi).collect();
+        let aris: Vec<f64> = seed_results.iter().map(|r| r.ari).collect();
+        let times: Vec<f64> = seed_results.iter().map(|r| r.time_s).collect();
+        let coclusters: Vec<usize> = seed_results.iter().map(|r| r.coclusters).collect();
 
-        let pred_labels = extract_labels(&result.submatrices, matrix.rows, k);
-        let nmi = calculate_nmi(true_labels, &pred_labels);
-        let ari = calculate_ari(true_labels, &pred_labels);
+        let nmi_mean = mean(&nmis);
+        let nmi_std = std_dev(&nmis);
+        let ari_mean = mean(&aris);
+        let ari_std = std_dev(&aris);
+        let time_mean = mean(&times);
+        let time_std = std_dev(&times);
+        let cc_mean = mean(&coclusters.iter().map(|&c| c as f64).collect::<Vec<_>>());
 
-        println!("  {:<22} {:>8.4} {:>8.4} {:>10} {:>7.3}s {:>7.3}s",
-            strategy_name, nmi, ari, result.submatrices.len(), merge_time, total_time);
+        println!("  {:<22} {:>5.4}+/-{:<5.4} {:>5.4}+/-{:<5.4} {:>10.1} {:>5.3}+/-{:<5.3}",
+            strategy_name, nmi_mean, nmi_std, ari_mean, ari_std, cc_mean, time_mean, time_std);
+
+        let r4 = |v: f64| (v * 10000.0).round() / 10000.0;
+        let r3 = |v: f64| (v * 1000.0).round() / 1000.0;
+
+        strategies_json.insert(strategy_name, json!({
+            "nmi_mean": r4(nmi_mean),
+            "nmi_std": r4(nmi_std),
+            "ari_mean": r4(ari_mean),
+            "ari_std": r4(ari_std),
+            "time_mean_s": r3(time_mean),
+            "time_std_s": r3(time_std),
+            "coclusters_mean": (cc_mean * 10.0).round() / 10.0,
+            "n_seeds": NUM_SEEDS,
+            "raw_nmi": nmis.iter().map(|&v| r4(v)).collect::<Vec<_>>(),
+            "raw_ari": aris.iter().map(|&v| r4(v)).collect::<Vec<_>>(),
+            "raw_time_s": times.iter().map(|&v| r3(v)).collect::<Vec<_>>(),
+        }));
     }
 
-    Ok(())
+    Ok(json!({
+        "dataset": name,
+        "m_blocks": m_blocks,
+        "n_blocks": n_blocks,
+        "t_p": t_p,
+        "threads": num_threads,
+        "n_seeds": NUM_SEEDS,
+        "baseline_scc": baseline_json,
+        "strategies": strategies_json,
+    }))
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -241,19 +335,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     println!("\n{}", "=".repeat(80));
-    println!("DiMergeCo Merge Strategy Ablation Study");
+    println!("DiMergeCo Merge Strategy Ablation Study ({} seeds)", NUM_SEEDS);
     println!("{}", "=".repeat(80));
 
     let num_threads = num_cpus::get().min(16);
+    let mut all_results = serde_json::Map::new();
 
     // Classic4
-    let (matrix, labels, k) = load_classic4()?;
-    run_ablation("Classic4", &matrix, &labels, k, 2, 2, 10, num_threads)?;
-    run_ablation("Classic4", &matrix, &labels, k, 2, 2, 30, num_threads)?;
+    {
+        let (matrix, labels, k) = load_classic4()?;
+        let r = run_ablation("Classic4", &matrix, &labels, k, 2, 2, 10, num_threads)?;
+        all_results.insert("classic4_tp10".to_string(), r);
+    }
 
     // BCW
-    let (matrix, labels, k) = load_bcw()?;
-    run_ablation("BCW", &matrix, &labels, k, 2, 2, 10, num_threads)?;
+    {
+        let (matrix, labels, k) = load_bcw()?;
+        let r = run_ablation("BCW", &matrix, &labels, k, 2, 2, 10, num_threads)?;
+        all_results.insert("bcw_tp10".to_string(), r);
+    }
+
+    let output = json!({
+        "timestamp": chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        "tool": "Rust DiMergeCo ablation_merge_strategy (10 seeds)",
+        "datasets": all_results,
+    });
+
+    let output_path = "baselines/results/rust_merge_ablation_10seeds.json";
+    std::fs::write(output_path, serde_json::to_string_pretty(&output)?)?;
+    println!("\nResults saved to {}", output_path);
 
     println!("\n{}", "=".repeat(80));
     println!("Ablation complete.");
