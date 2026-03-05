@@ -18,6 +18,7 @@ import os
 import time
 import json
 import argparse
+import logging
 import datetime
 import numpy as np
 from pathlib import Path
@@ -97,7 +98,7 @@ def random_partition_and_cluster(X, k, m_blocks, n_blocks, t_p, seed):
 
         for rg in row_groups:
             rg_sorted = np.sort(rg)
-            # Use all columns (just vary row partition for simplicity in Python)
+            # Use both row and column partitions to form subproblems
             for cg in col_groups:
                 cg_sorted = np.sort(cg)
                 X_sub = X[np.ix_(rg_sorted, cg_sorted)]
@@ -106,45 +107,52 @@ def random_partition_and_cluster(X, k, m_blocks, n_blocks, t_p, seed):
                 try:
                     local_labels = atom_scc(X_sub, k, seed + t)
                     all_local_results.append((rg_sorted, local_labels))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logging.debug("Subproblem clustering failed (t=%d, block %dx%d): %s",
+                                  t, X_sub.shape[0], X_sub.shape[1], e)
 
     return all_local_results
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def local_labels_to_membership(row_idx, labels, n_rows):
+    """Dense membership matrix for a single local result."""
+    unique_labels = np.unique(labels)
+    M = np.zeros((n_rows, len(unique_labels)), dtype=np.float32)
+    for col, lab in enumerate(unique_labels):
+        mask = labels == lab
+        M[row_idx[mask], col] = 1.0
+    return M
 
 
 # ── Merging strategies ────────────────────────────────────────────────────────
 
 def merge_centralized(local_results, n_rows, k, seed):
-    """Strategy 1: Centralized — build full membership matrix, k-means."""
-    n_coclusters = sum(len(np.unique(lab)) for _, lab in local_results)
-    membership = np.zeros((n_rows, n_coclusters), dtype=np.float32)
+    """Strategy 2: Centralized — build full membership matrix, k-means."""
+    if not local_results:
+        return np.zeros(n_rows, dtype=int)
 
-    col_offset = 0
-    for row_idx, labels in local_results:
-        unique_labels = np.unique(labels)
-        for lab in unique_labels:
-            mask = labels == lab
-            membership[row_idx[mask], col_offset] = 1.0
-            col_offset += 1
+    all_memberships = [
+        local_labels_to_membership(row_idx, labels, n_rows)
+        for row_idx, labels in local_results
+    ]
+    membership = np.hstack(all_memberships)
 
     km = KMeans(n_clusters=k, n_init=10, random_state=seed)
     return km.fit_predict(membership)
 
 
 def merge_hierarchical(local_results, n_rows, k, seed):
-    """Strategy 2: Hierarchical — binary tree pairwise merge."""
+    """Strategy 1: Hierarchical — binary tree pairwise merge."""
     if not local_results:
         return np.zeros(n_rows, dtype=int)
 
     # Build membership matrices for each local result
-    memberships = []
-    for row_idx, labels in local_results:
-        n_local_k = len(np.unique(labels))
-        M = np.zeros((n_rows, n_local_k), dtype=np.float32)
-        for i, lab in enumerate(np.unique(labels)):
-            mask = labels == lab
-            M[row_idx[mask], i] = 1.0
-        memberships.append(M)
+    memberships = [
+        local_labels_to_membership(row_idx, labels, n_rows)
+        for row_idx, labels in local_results
+    ]
 
     # Binary tree merge: pairwise concatenate and reduce with k-means
     rng = np.random.RandomState(seed)
@@ -175,17 +183,13 @@ def merge_hierarchical(local_results, n_rows, k, seed):
 
 def merge_union(local_results, n_rows, k, seed):
     """Strategy 3: Union — concatenate all local memberships, k-means."""
-    all_memberships = []
-    for row_idx, labels in local_results:
-        unique_labels = np.unique(labels)
-        M = np.zeros((n_rows, len(unique_labels)), dtype=np.float32)
-        for i, lab in enumerate(unique_labels):
-            mask = labels == lab
-            M[row_idx[mask], i] = 1.0
-        all_memberships.append(M)
-
-    if not all_memberships:
+    if not local_results:
         return np.zeros(n_rows, dtype=int)
+
+    all_memberships = [
+        local_labels_to_membership(row_idx, labels, n_rows)
+        for row_idx, labels in local_results
+    ]
 
     M_full = np.hstack(all_memberships)
     km = KMeans(n_clusters=k, n_init=10, random_state=seed)
@@ -229,14 +233,10 @@ def merge_greedy_overlap(local_results, n_rows, k, seed):
         return np.zeros(n_rows, dtype=int)
 
     # Build per-row cluster assignment sets
-    all_memberships = []
-    for row_idx, labels in local_results:
-        unique_labels = np.unique(labels)
-        M = np.zeros((n_rows, len(unique_labels)), dtype=np.float32)
-        for i, lab in enumerate(unique_labels):
-            mask = labels == lab
-            M[row_idx[mask], i] = 1.0
-        all_memberships.append(M)
+    all_memberships = [
+        local_labels_to_membership(row_idx, labels, n_rows)
+        for row_idx, labels in local_results
+    ]
 
     M_full = np.hstack(all_memberships)
     n_total_clusters = M_full.shape[1]

@@ -1,13 +1,20 @@
 #!/bin/bash
 # Run all Classic4 experiment configurations in parallel.
-# Each config gets 4 threads, we run ~36 configs concurrently on 144 cores.
+# Each config gets 2 threads, we run ~36 configs concurrently.
 
 set -e
 cd "$(dirname "$0")/.."
 
-BIN="target/release/examples/run_single_config"
+# TODO: Implement examples/run_single_config.rs to accept (dataset, m, n, tp, threads, seeds)
+# For now, use evaluate_classic4 as the sweep target
+BIN="target/release/examples/evaluate_classic4"
 DATASET="paper"  # 6460x4667
 SEEDS=${1:-3}    # default 3 seeds (pass 10 for full)
+# Validate SEEDS is numeric to prevent command injection
+if ! [[ "$SEEDS" =~ ^[0-9]+$ ]]; then
+    echo "Error: SEEDS must be a positive integer, got '$SEEDS'" >&2
+    exit 1
+fi
 THREADS=2        # threads per config (lower to allow more parallelism)
 RESULTS_DIR="data/experiment_results"
 rm -rf "$RESULTS_DIR"

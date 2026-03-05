@@ -58,24 +58,23 @@ def load_dataset(name):
 
 
 def get_peak_rss_mb():
-    """Get peak RSS in MB (Linux: ru_maxrss is in KB)."""
+    """Get peak RSS in MB. Linux: ru_maxrss is in KB; macOS/BSD: in bytes."""
     usage = resource.getrusage(resource.RUSAGE_SELF)
+    if sys.platform == 'darwin':
+        return usage.ru_maxrss / (1024.0 * 1024.0)
     return usage.ru_maxrss / 1024.0
 
 
 def measure_method(method_fn, X, n_clusters, seed):
-    """Run a method and measure peak RSS delta and time."""
+    """Run a method and measure absolute peak RSS (since process start) and time."""
     import gc
     gc.collect()
-    rss_before = get_peak_rss_mb()
 
     t0 = time.time()
     pred_labels = method_fn(X, n_clusters, seed)
     elapsed = time.time() - t0
 
     rss_after = get_peak_rss_mb()
-    # Peak RSS only increases, so delta = after - before
-    # For a rough estimate, we take the peak after running
     return pred_labels, elapsed, rss_after
 
 
@@ -101,10 +100,14 @@ def run_scc(X, n_clusters, seed):
     du = np.where(np.abs(rs) < eps, 0.0, rs ** -0.5)
     dv = np.where(np.abs(cs) < eps, 0.0, cs ** -0.5)
     An = diags(du) @ X_sp @ diags(dv)
-    U, s, Vt = svds(An, k=n_clusters)
+    min_dim = min(An.shape)
+    eff_k = min(n_clusters, min_dim - 1)
+    if eff_k < 1:
+        return np.zeros(X.shape[0], dtype=int)
+    U, s, Vt = svds(An, k=eff_k)
     Z = np.vstack([U, Vt.T])
     Z = normalize(Z, norm='l2', axis=1)
-    km = KMeans(n_clusters=n_clusters, n_init=10, random_state=seed)
+    km = KMeans(n_clusters=eff_k, n_init=10, random_state=seed)
     labels = km.fit_predict(Z)
     return labels[:X.shape[0]]
 

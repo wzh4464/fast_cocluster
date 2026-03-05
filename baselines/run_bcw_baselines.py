@@ -136,12 +136,16 @@ def run_scc_dhillon(X, labels, n_clusters, seed):
     du_inv = np.where(np.abs(row_sums) < eps, 0.0, row_sums ** -0.5)
     dv_inv = np.where(np.abs(col_sums) < eps, 0.0, col_sums ** -0.5)
     An = diags(du_inv) @ X_sp @ diags(dv_inv)
+    min_dim = min(An.shape)
+    eff_k = min(n_clusters, min_dim - 1)
+    if eff_k < 1:
+        return np.zeros(X.shape[0], dtype=int), 0.0
     t0 = time.time()
-    U, s, Vt = svds(An, k=n_clusters)
+    U, s, Vt = svds(An, k=eff_k)
     V = Vt.T
     Z = np.vstack([U, V])
     Z = normalize(Z, norm='l2', axis=1)
-    km = KMeans(n_clusters=n_clusters, n_init=10, random_state=seed)
+    km = KMeans(n_clusters=eff_k, n_init=10, random_state=seed)
     all_labels = km.fit_predict(Z)
     elapsed = time.time() - t0
     return all_labels[:X.shape[0]], elapsed
@@ -210,7 +214,7 @@ METHODS = {
     "ONM3F":       {"fn": run_onm3f,       "paper_name": "ONMTF (Ding 2006)"},
     "ONMTF":       {"fn": run_onmtf,       "paper_name": "ONMTF (Yoo 2010)"},
     "PNMTF":       {"fn": run_pnmtf,       "paper_name": "PNMTF (Wang 2017)"},
-    "FNMF":        {"fn": run_fnmf,         "paper_name": "FNMTF (Kim & Park 2011)"},
+    "FNMF":        {"fn": run_fnmf,         "paper_name": "FNMF (Kim & Park 2011)"},
 }
 
 

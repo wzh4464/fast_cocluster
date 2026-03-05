@@ -69,10 +69,14 @@ def run_scc_baseline(X, n_clusters, seed):
     An = diags(du_inv) @ X_sp @ diags(dv_inv)
 
     t0 = time.time()
-    U, s, Vt = svds(An, k=n_clusters)
+    min_dim = min(An.shape)
+    eff_k = min(n_clusters, min_dim - 1)
+    if eff_k < 1:
+        return np.zeros(X.shape[0], dtype=int), 0.0
+    U, s, Vt = svds(An, k=eff_k)
     Z = np.vstack([U, Vt.T])
     Z = normalize(Z, norm='l2', axis=1)
-    km = KMeans(n_clusters=n_clusters, n_init=10, random_state=seed)
+    km = KMeans(n_clusters=eff_k, n_init=10, random_state=seed)
     all_labels = km.fit_predict(Z)
     elapsed = time.time() - t0
     return all_labels[:X.shape[0]], elapsed

@@ -114,8 +114,8 @@ fn main() {
 
         // FNMF
         run_comparison("FNMF",
-            || FnmfClusterer::with_clusters(k, k, 10),
-            || FnmfClusterer::with_clusters(k, k, 10),
+            || FnmfClusterer::new(k, k),
+            || FnmfClusterer::new(k, k),
             &array, &matrix, nrows, k, max_threads, tp, m_blocks, n_blocks);
 
         // Spectral

@@ -45,7 +45,7 @@ fn main() {
     println!("  Non-zeros: {} ({:.4}% density)", nnz, density * 100.0);
     println!("  Memory: {:.2} GB\n", (rows * cols * 8) as f64 / 1e9);
 
-    let matrix = Matrix::new(array.clone());
+    let matrix = Matrix::new(array);
 
     // Parameters
     let k = 20;  // number of clusters
@@ -67,7 +67,7 @@ fn main() {
         "Spectral",
         || ClustererAdapter::new(SVDClusterer::new(k, 0.1)),
         || ClustererAdapter::new(SVDClusterer::new(k, 0.1)),
-        &array, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
+        &matrix.data, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
     );
 
     // NBVD
@@ -75,7 +75,7 @@ fn main() {
         "NBVD",
         || NbvdClusterer::with_config(make_config(k)),
         || NbvdClusterer::with_config(make_config(k)),
-        &array, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
+        &matrix.data, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
     );
 
     // ONM3F
@@ -83,7 +83,7 @@ fn main() {
         "ONM3F",
         || Onm3fClusterer::with_config(make_config(k)),
         || Onm3fClusterer::with_config(make_config(k)),
-        &array, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
+        &matrix.data, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
     );
 
     // ONMTF
@@ -91,7 +91,7 @@ fn main() {
         "ONMTF",
         || OnmtfClusterer::with_config(make_config(k)),
         || OnmtfClusterer::with_config(make_config(k)),
-        &array, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
+        &matrix.data, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
     );
 
     // PNMTF
@@ -99,15 +99,15 @@ fn main() {
         "PNMTF",
         || PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1),
         || PnmtfClusterer::with_config(make_config(k), 0.1, 0.1, 0.1),
-        &array, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
+        &matrix.data, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
     );
 
     // FNMF
     run_comparison(
         "FNMF",
-        || FnmfClusterer::with_clusters(k, k, 10),
-        || FnmfClusterer::with_clusters(k, k, 10),
-        &array, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
+        || FnmfClusterer::new(k, k),
+        || FnmfClusterer::new(k, k),
+        &matrix.data, &matrix, rows, k, num_threads, tp, m_blocks, n_blocks,
     );
 
     println!("{}", "-".repeat(70));
