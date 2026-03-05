@@ -271,9 +271,9 @@ fn column_group(b: &Array2<bool>) -> Vec<Vec<usize>> {
     groups
 }
 
-/// Solve A*X = B using LAPACK LU factorization
+/// Solve A*X = B using LAPACK LU factorization with SVD fallback
 fn solve_linear(a: &Array2<f64>, b: &Array2<f64>) -> Array2<f64> {
-    use ndarray_linalg::Factorize;
+    use ndarray_linalg::{Factorize, LeastSquaresSvd};
 
     let n = a.nrows();
     let k = b.ncols();
@@ -282,63 +282,41 @@ fn solve_linear(a: &Array2<f64>, b: &Array2<f64>) -> Array2<f64> {
         return Array2::zeros((n, k));
     }
 
-    // Add small regularization to avoid singular matrix issues
+    // Scale-aware regularization to avoid singular matrix issues
     let mut a_reg = a.clone();
+    let mut scale = 0.0_f64;
     for i in 0..n {
-        a_reg[[i, i]] += 1e-10;
+        scale = scale.max(a[[i, i]].abs());
     }
-
-    // Factorize once, solve for each column
-    match a_reg.factorize() {
-        Ok(lu) => {
-            let mut x = Array2::zeros((n, k));
-            for j in 0..k {
-                let b_col = b.column(j).to_owned();
-                match lu.solve(&b_col) {
-                    Ok(x_col) => x.column_mut(j).assign(&x_col),
-                    Err(_) => {
-                        let x_col = solve_column_fallback(&a_reg, &b_col);
-                        x.column_mut(j).assign(&x_col);
-                    }
-                }
-            }
-            x
+    if scale == 0.0 {
+        for v in a.iter() {
+            scale = scale.max(v.abs());
         }
-        Err(_) => solve_linear_fallback(&a_reg, b),
     }
-}
+    let eps = 1e-10 * if scale > 0.0 { scale } else { 1.0 };
+    for i in 0..n {
+        a_reg[[i, i]] += eps;
+    }
 
-/// Solve A*x = b for a single column using least squares
-fn solve_column_fallback(a: &Array2<f64>, b: &Array1<f64>) -> Array1<f64> {
-    use ndarray_linalg::LeastSquaresSvd;
+    // Try LU factorization, solve all columns at once via per-column solve
+    if let Ok(lu) = a_reg.factorize() {
+        let mut x = Array2::zeros((n, k));
+        let mut all_ok = true;
+        for j in 0..k {
+            let b_col = b.column(j).to_owned();
+            match lu.solve(&b_col) {
+                Ok(x_col) => x.column_mut(j).assign(&x_col),
+                Err(_) => { all_ok = false; break; }
+            }
+        }
+        if all_ok { return x; }
+    }
 
-    match a.least_squares(b) {
+    // Fallback: SVD least-squares for all columns
+    match a_reg.least_squares(b) {
         Ok(result) => result.solution,
-        Err(_) => Array1::zeros(a.ncols()),
+        Err(_) => Array2::zeros((n, k)),
     }
-}
-
-/// Fallback solver for ill-conditioned systems
-fn solve_linear_fallback(a: &Array2<f64>, b: &Array2<f64>) -> Array2<f64> {
-    use ndarray_linalg::LeastSquaresSvd;
-
-    let n = a.nrows();
-    let k = b.ncols();
-    let mut x = Array2::zeros((n, k));
-
-    // Solve each column using SVD-based least squares (most robust)
-    for j in 0..k {
-        let b_col = b.column(j).to_owned();
-        match a.least_squares(&b_col) {
-            Ok(result) => {
-                x.column_mut(j).assign(&result.solution);
-            }
-            Err(_) => {
-                // Complete failure - return zeros for this column
-            }
-        }
-    }
-    x
 }
 
 // Helper functions

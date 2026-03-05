@@ -46,7 +46,7 @@ Python baselines (10 seeds):
 | SpectralCC (sklearn) | 0.4313 +/- 0.0005 | 0.2727 +/- 0.0027 | 0.27 | sklearn |
 
 Notes:
-- SCC-Dhillon is our Rust implementation's reference; matches Python closely.
+- SCC-Dhillon is our Rust implementation's reference; it matches Python closely.
 - FNMF is bimodal: converges to NMI ~0.578 (7/10 seeds) or ~0.681 (3/10 seeds), indicating sensitivity to initialization.
 - SpectralCC (sklearn's `SpectralCoclustering`) uses log(k)+1 SVs vs our k SVs, explaining the large gap.
 

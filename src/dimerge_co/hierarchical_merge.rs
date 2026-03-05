@@ -218,7 +218,7 @@ impl HierarchicalMerger {
             .par_iter()
             .flat_map(|left_cluster| {
                 right_clusters
-                    .par_iter()
+                    .iter()
                     .map(move |right_cluster| {
                         let overlap = self.compute_overlap(left_cluster, right_cluster);
                         if overlap >= overlap_threshold {

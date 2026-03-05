@@ -120,20 +120,18 @@ pub fn extract_partition_matrix_parallel(
         return extract_partition_matrix(matrix, partition);
     }
 
-    // Parallel: extract each row independently
-    let rows: Vec<Vec<f64>> = partition.row_indices
-        .par_iter()
-        .map(|&row_idx| {
-            let row = matrix.row(row_idx);
-            partition.col_indices
-                .iter()
-                .map(|&col_idx| row[col_idx])
-                .collect()
-        })
-        .collect();
+    // Parallel: extract each row into a preallocated flat buffer
+    let mut flat: Vec<f64> = vec![0.0; n_rows * n_cols];
 
-    // Assemble into Array2
-    let flat: Vec<f64> = rows.into_iter().flatten().collect();
+    flat.par_chunks_mut(n_cols)
+        .zip(partition.row_indices.par_iter())
+        .for_each(|(row_out, &row_idx)| {
+            let row = matrix.row(row_idx);
+            for (out, &col_idx) in row_out.iter_mut().zip(partition.col_indices.iter()) {
+                *out = row[col_idx];
+            }
+        });
+
     Array2::from_shape_vec((n_rows, n_cols), flat).unwrap()
 }
 
