@@ -419,6 +419,22 @@ def load_classic4():
     return X, labels
 
 
+def load_bcw():
+    """Load BCW dataset (569 x 30) with labels."""
+    bcw_path = DATA_DIR / "bcw.npy"
+    labels_path = DATA_DIR / "bcw_labels.npy"
+    if not bcw_path.exists():
+        print("BCW data not found. Downloading...")
+        from sklearn.datasets import load_breast_cancer
+        data = load_breast_cancer()
+        np.save(bcw_path, data.data.astype(np.float64))
+        np.save(labels_path, data.target.astype(np.int64))
+    X = np.load(bcw_path)
+    labels = np.load(labels_path)
+    print(f"Loaded BCW: {X.shape}, {len(np.unique(labels))} classes")
+    return X, labels
+
+
 def load_rcv1(subset="train"):
     """Load RCV1 and convert multi-label to single top-level category."""
     from sklearn.datasets import fetch_rcv1
@@ -462,7 +478,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="DiMergeCo with multiple atom co-clustering methods")
     parser.add_argument("--dataset", type=str, required=True,
-                        choices=["classic4", "rcv1"],
+                        choices=["classic4", "rcv1", "bcw"],
                         help="Dataset to evaluate on")
     parser.add_argument("--methods", type=str, default="all",
                         help="Comma-separated atom methods, or 'all'")
@@ -502,6 +518,8 @@ def main():
 
     if args.dataset == "classic4":
         X, labels = load_classic4()
+    elif args.dataset == "bcw":
+        X, labels = load_bcw()
     else:
         X, labels = load_rcv1(args.rcv1_subset)
 
@@ -579,7 +597,10 @@ def main():
 
     # Save results
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    dataset_tag = args.dataset if args.dataset == "classic4" else f"rcv1_{args.rcv1_subset}"
+    if args.dataset == "rcv1":
+        dataset_tag = f"rcv1_{args.rcv1_subset}"
+    else:
+        dataset_tag = args.dataset
     out_path = RESULTS_DIR / f"{dataset_tag}_dimerge_co_variants.json"
     with open(out_path, "w") as f:
         json.dump({
