@@ -109,7 +109,8 @@ fn main() {
     let k = 4;
     let num_threads = 16;
     let tp = 10;
-    let (m_blocks, n_blocks) = (8, 8);
+    // Row-only partitioning: column splits destroy sparse TF-IDF signal
+    let (m_blocks, n_blocks) = (8, 1);
 
     println!("\n{}", "=".repeat(80));
     println!("Method              Standalone                    DiMergeCo");

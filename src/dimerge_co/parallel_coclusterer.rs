@@ -102,7 +102,7 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
             parallel_config,
             num_iterations: num_iterations.max(1),
             m_blocks: m_blocks.max(2),
-            n_blocks: n_blocks.max(2),
+            n_blocks: n_blocks.max(1), // n_blocks=1 = row-only partitioning (no column split)
         })
     }
 
@@ -159,6 +159,21 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
             self.num_threads, matrix.rows, matrix.cols,
             self.num_iterations, self.m_blocks, self.n_blocks
         );
+
+        // Warn if column partitioning on sparse data (likely to degrade spectral methods)
+        if self.n_blocks > 1 {
+            let total_elements = matrix.rows * matrix.cols;
+            let nonzero_count = matrix.data.iter().filter(|&&v| v.abs() > 1e-15).count();
+            let sparsity = 1.0 - (nonzero_count as f64 / total_elements as f64);
+            if sparsity > 0.95 {
+                log::warn!(
+                    "DiMergeCo: matrix is {:.1}% sparse with n_blocks={}. Column partitioning on \
+                     very sparse data may degrade spectral co-clustering quality. Consider using \
+                     n_blocks=1 (row-only partitioning) to preserve full feature vocabulary.",
+                    sparsity * 100.0, self.n_blocks
+                );
+            }
+        }
 
         let (final_result, stats) = pool.install(|| -> Result<_, DiMergeCoError> {
             // Phase 1+2: T_p iterations of random partitioning + local clustering
