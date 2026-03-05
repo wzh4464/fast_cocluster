@@ -162,16 +162,33 @@ impl<L: LocalClusterer> DiMergeCoClusterer<L> {
 
         // Warn if column partitioning on sparse data (likely to degrade spectral methods)
         if self.n_blocks > 1 {
-            let total_elements = matrix.rows * matrix.cols;
-            let nonzero_count = matrix.data.iter().filter(|&&v| v.abs() > 1e-15).count();
-            let sparsity = 1.0 - (nonzero_count as f64 / total_elements as f64);
-            if sparsity > 0.95 {
-                log::warn!(
-                    "DiMergeCo: matrix is {:.1}% sparse with n_blocks={}. Column partitioning on \
-                     very sparse data may degrade spectral co-clustering quality. Consider using \
-                     n_blocks=1 (row-only partitioning) to preserve full feature vocabulary.",
-                    sparsity * 100.0, self.n_blocks
-                );
+            if let Some(total_elements) = matrix.rows.checked_mul(matrix.cols) {
+                if total_elements > 0 {
+                    // Early-exit sparsity estimation: stop counting if >5% are nonzero
+                    let max_nonzeros_for_sparse = ((total_elements as f64) * 0.05).ceil() as usize;
+                    let mut nonzero_count: usize = 0;
+                    let mut is_sparse = true;
+                    for &v in matrix.data.iter() {
+                        if v.abs() > 1e-15 {
+                            nonzero_count += 1;
+                            if nonzero_count > max_nonzeros_for_sparse {
+                                is_sparse = false;
+                                break;
+                            }
+                        }
+                    }
+                    if is_sparse {
+                        let sparsity = 1.0 - (nonzero_count as f64 / total_elements as f64);
+                        if sparsity > 0.95 {
+                            log::warn!(
+                                "DiMergeCo: matrix is {:.1}% sparse with n_blocks={}. Column partitioning on \
+                                 very sparse data may degrade spectral co-clustering quality. Consider using \
+                                 n_blocks=1 (row-only partitioning) to preserve full feature vocabulary.",
+                                sparsity * 100.0, self.n_blocks
+                            );
+                        }
+                    }
+                }
             }
         }
 
