@@ -99,8 +99,7 @@ fn nnlsm_blockpivot_product(
             for row in 0..n {
                 if y[[row, col]] < 0.0 && !pass_set[[row, col]] {
                     pass_set[[row, col]] = true;
-                }
-                if x[[row, col]] < 0.0 && pass_set[[row, col]] {
+                } else if x[[row, col]] < 0.0 && pass_set[[row, col]] {
                     pass_set[[row, col]] = false;
                 }
             }
@@ -112,8 +111,7 @@ fn nnlsm_blockpivot_product(
             for row in 0..n {
                 if y[[row, col]] < 0.0 && !pass_set[[row, col]] {
                     pass_set[[row, col]] = true;
-                }
-                if x[[row, col]] < 0.0 && pass_set[[row, col]] {
+                } else if x[[row, col]] < 0.0 && pass_set[[row, col]] {
                     pass_set[[row, col]] = false;
                 }
             }

@@ -51,6 +51,36 @@ impl FnmfClusterer {
         }
     }
 
+    /// Run multi-init ANLS-BPP and return (row_labels, col_labels, rel_error).
+    ///
+    /// This directly returns `argmax(W)` / `argmax(H)` labels, matching
+    /// the Python baseline (Kim & Park 2011).  Use this for standalone
+    /// evaluation instead of going through `cluster_local` → submatrices.
+    pub fn fit_labels(&self, x: &Array2<f64>) -> (Vec<usize>, Vec<usize>, f64) {
+        let base_seed = self.seed.unwrap_or(42);
+        let mut best_w = None;
+        let mut best_h = None;
+        let mut best_error = f64::INFINITY;
+
+        for init_idx in 0..self.n_init {
+            let seed = base_seed.wrapping_add(init_idx as u64);
+            let (w, h, error) = self.fit_single(x, seed);
+            if error < best_error {
+                best_error = error;
+                best_w = Some(w);
+                best_h = Some(h);
+            }
+        }
+
+        let w = best_w.unwrap();
+        let h = best_h.unwrap();
+
+        let row_labels = argmax_axis1(&w.slice(ndarray::s![.., ..self.n_row_clusters]).to_owned());
+        let col_labels = argmax_axis1(&h.slice(ndarray::s![.., ..self.n_col_clusters]).to_owned());
+
+        (row_labels, col_labels, best_error)
+    }
+
     /// Run a single ANLS-BPP factorization
     fn fit_single(&self, x: &Array2<f64>, seed: u64) -> (Array2<f64>, Array2<f64>, f64) {
         let m = x.nrows();
