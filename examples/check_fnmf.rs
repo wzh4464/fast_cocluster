@@ -4,7 +4,6 @@
 //! Run: cargo run --release --example check_fnmf
 
 use fast_cocluster::atom::fnmf::FnmfClusterer;
-use fast_cocluster::dimerge_co::parallel_coclusterer::LocalClusterer;
 use ndarray::Array2;
 
 fn load_classic4() -> Result<(Array2<f64>, Vec<usize>), Box<dyn std::error::Error>> {
@@ -128,19 +127,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let clusterer = FnmfClusterer {
             n_row_clusters,
             n_col_clusters,
-            max_iter: 50,
+            max_iter: 100,
             n_init: 1,
             seed: Some(seed),
         };
-        let submatrices = clusterer.cluster_local(&x)?;
-
-        // Extract row labels from submatrices
-        let mut pred_labels = vec![0usize; x.nrows()];
-        for (cid, sub) in submatrices.iter().enumerate() {
-            for &r in &sub.row_indices {
-                pred_labels[r] = cid;
-            }
-        }
+        let (pred_labels, _col_labels, _err) = clusterer.fit_labels(&x);
 
         let nmi = calculate_nmi(&true_labels, &pred_labels);
         let ari = calculate_ari(&true_labels, &pred_labels);

@@ -275,20 +275,15 @@ fn main() {
         }
     }
 
-    // FNMF
+    // FNMF — use fit_labels (argmax W) directly, matching Python baseline
     {
         let start = Instant::now();
-        let clusterer = FnmfClusterer::new(k, 50);
-        let standalone_result = match clusterer.cluster_local(&matrix.data) {
-            Ok(subs) => {
-                let pred = extract_labels(&subs, rows, k);
-                Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()))
-            }
-            Err(_) => None,
-        };
+        let clusterer = FnmfClusterer::new(k, 100);
+        let (pred, _col_labels, _err) = clusterer.fit_labels(&matrix.data);
+        let standalone_result = Some((calculate_nmi(&true_labels, &pred), calculate_ari(&true_labels, &pred), start.elapsed().as_secs_f64()));
 
         let start = Instant::now();
-        let local = FnmfClusterer::new(k, 50);
+        let local = FnmfClusterer::new(k, 100);
         let dimerge_result = match DiMergeCoClusterer::new(k, rows, 0.05, local, HierarchicalMergeConfig::default(), num_threads, tp, m_blocks, n_blocks) {
             Ok(c) => match c.run(&matrix) {
                 Ok(result) => {
