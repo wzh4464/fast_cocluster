@@ -1,0 +1,44 @@
+{
+  "experiment": "RCV1-all row-only partitioning evaluation",
+  "dataset": {
+    "name": "RCV1-all",
+    "rows": 50000,
+    "cols": 47236,
+    "size_gb": 18.89,
+    "k": 4
+  },
+  "config": {
+    "m_blocks": 8,
+    "n_blocks": 1,
+    "max_iter": 20,
+    "inner_iter": 10,
+    "threads": 16
+  },
+  "results": [
+    {
+      "method": "spectral",
+      "standalone": { "nmi": 0.0097, "ari": -0.0056, "time_secs": 118.4 },
+      "dimergeco": { "nmi": 0.0078, "ari": 0.0059, "time_secs": 226.0, "clusters": 640 }
+    },
+    {
+      "method": "nbvd",
+      "standalone": { "nmi": 0.1652, "ari": 0.1269, "time_secs": 1990.5 },
+      "dimergeco": { "nmi": 0.1537, "ari": 0.1175, "time_secs": 3553.2, "clusters": 2560 }
+    },
+    {
+      "method": "onm3f",
+      "standalone": { "nmi": 0.1122, "ari": 0.1035, "time_secs": 1977.0 },
+      "dimergeco": { "nmi": 0.0094, "ari": 0.0106, "time_secs": 3448.0, "clusters": 2560 }
+    },
+    {
+      "method": "pnmtf",
+      "standalone": { "nmi": 0.1160, "ari": 0.1078, "time_secs": 1919.4 },
+      "dimergeco": { "nmi": 0.1274, "ari": 0.1025, "time_secs": 3594.6, "clusters": 2560 }
+    },
+    {
+      "method": "fnmf",
+      "standalone": { "nmi": 0.1382, "ari": 0.1247, "time_secs": 217.4 },
+      "dimergeco": { "nmi": 0.1385, "ari": 0.1676, "time_secs": 737.5, "clusters": 2560 }
+    }
+  ]
+}
