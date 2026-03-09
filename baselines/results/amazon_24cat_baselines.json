@@ -1,0 +1,85 @@
+{
+  "experiment": "Amazon 24-category baselines",
+  "dataset": "amazon_24cat",
+  "shape": [
+    1116318,
+    731283
+  ],
+  "nnz": 17106506,
+  "k": 24,
+  "date": "2026-03-07 21:25:26",
+  "results": [
+    {
+      "method": "SCC",
+      "seed": 0,
+      "nmi": 0.0013177269569217985,
+      "ari": -0.001105320305205437,
+      "time_s": 41.921350717544556,
+      "error": null
+    },
+    {
+      "method": "SCC",
+      "seed": 1,
+      "nmi": 0.4010302400716365,
+      "ari": 0.42981290027448776,
+      "time_s": 39.04586410522461,
+      "error": null
+    },
+    {
+      "method": "SCC",
+      "seed": 2,
+      "nmi": 0.0013371095232827157,
+      "ari": 2.292231246481981e-07,
+      "time_s": 37.596352338790894,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 0,
+      "nmi": 0.4283857239648505,
+      "ari": 0.11368398364409411,
+      "time_s": 220.02504014968872,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 1,
+      "nmi": 0.4233726191703681,
+      "ari": 0.09998913268925438,
+      "time_s": 173.031578540802,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 2,
+      "nmi": 0.42938493654954374,
+      "ari": 0.14254169701128763,
+      "time_s": 134.91450810432434,
+      "error": null
+    },
+    {
+      "method": "DiMergeCo-SCC",
+      "seed": 0,
+      "nmi": null,
+      "ari": null,
+      "time_s": null,
+      "error": "could not convert integer scalar"
+    },
+    {
+      "method": "DiMergeCo-SCC",
+      "seed": 1,
+      "nmi": null,
+      "ari": null,
+      "time_s": null,
+      "error": "could not convert integer scalar"
+    },
+    {
+      "method": "DiMergeCo-SCC",
+      "seed": 2,
+      "nmi": null,
+      "ari": null,
+      "time_s": null,
+      "error": "could not convert integer scalar"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "experiment": "BCW DiMergeCo-PNMTF k=2",
+  "date": "2026-03-08 18:26",
+  "k": 2,
+  "results": [
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 0,
+      "nmi": 0.5418654744101762,
+      "ari": 0.6591289375794395,
+      "time_s": 38.226927042007446,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    },
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 1,
+      "nmi": 0.42173378261349903,
+      "ari": 0.5260539921777025,
+      "time_s": 36.78773212432861,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    },
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 2,
+      "nmi": 0.5065786732270918,
+      "ari": 0.6248378456966265,
+      "time_s": 36.4011435508728,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    },
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 3,
+      "nmi": 0.5490600528525398,
+      "ari": 0.6648615650948606,
+      "time_s": 35.86971974372864,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    },
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 4,
+      "nmi": 0.5219942599831147,
+      "ari": 0.6239695767847533,
+      "time_s": 36.365965127944946,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    },
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 5,
+      "nmi": 0.4818418613029555,
+      "ari": 0.5907460479960842,
+      "time_s": 35.67126417160034,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    },
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 6,
+      "nmi": 0.42395529789154346,
+      "ari": 0.5258760399622562,
+      "time_s": 35.71659541130066,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    },
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 7,
+      "nmi": 0.4662116725957047,
+      "ari": 0.5801131344548622,
+      "time_s": 35.613333225250244,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    },
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 8,
+      "nmi": 0.42395529789154346,
+      "ari": 0.5258760399622562,
+      "time_s": 35.87639927864075,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    },
+    {
+      "method": "DiMergeCo-PNMTF",
+      "dataset": "bcw",
+      "seed": 9,
+      "nmi": 0.4328727383651924,
+      "ari": 0.5364877101199419,
+      "time_s": 37.54838991165161,
+      "m_blocks": 2,
+      "n_blocks": 2,
+      "t_p": 10,
+      "k": 2
+    }
+  ]
+}

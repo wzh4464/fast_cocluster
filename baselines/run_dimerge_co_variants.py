@@ -202,7 +202,7 @@ class DiMergeCo:
 
                 # Extract sub-matrix
                 if sparse.issparse(X):
-                    X_sub = X[np.ix_(rg, cg)]
+                    X_sub = X[rg, :][:, cg]
                 else:
                     X_sub = X[np.ix_(rg, cg)]
 

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-02T16:07:32.939227",
+  "timestamp": "2026-03-08T18:11:24.598355",
   "dataset": "classic4_paper",
   "shape": [
     6460,
@@ -8,93 +8,30 @@
   "n_clusters": 4,
   "results": [
     {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "method": "ONMTF",
+      "paper_name": "ONMTF (Yoo 2010, via NMTFcoclust ONMTF)",
       "seed": 0,
-      "nmi": 0.7905,
-      "ari": 0.7491,
-      "time_s": 1.54,
+      "nmi": 0.4898,
+      "ari": 0.2424,
+      "time_s": 18945.35,
       "error": null
     },
     {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "method": "ONMTF",
+      "paper_name": "ONMTF (Yoo 2010, via NMTFcoclust ONMTF)",
       "seed": 1,
-      "nmi": 0.7906,
-      "ari": 0.7494,
-      "time_s": 1.48,
+      "nmi": 0.7133,
+      "ari": 0.6078,
+      "time_s": 16443.82,
       "error": null
     },
     {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
+      "method": "ONMTF",
+      "paper_name": "ONMTF (Yoo 2010, via NMTFcoclust ONMTF)",
       "seed": 2,
-      "nmi": 0.7903,
-      "ari": 0.7487,
-      "time_s": 1.5,
-      "error": null
-    },
-    {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
-      "seed": 3,
-      "nmi": 0.7903,
-      "ari": 0.7487,
-      "time_s": 1.49,
-      "error": null
-    },
-    {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
-      "seed": 4,
-      "nmi": 0.7903,
-      "ari": 0.7499,
-      "time_s": 1.47,
-      "error": null
-    },
-    {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
-      "seed": 5,
-      "nmi": 0.7903,
-      "ari": 0.7487,
-      "time_s": 1.49,
-      "error": null
-    },
-    {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
-      "seed": 6,
-      "nmi": 0.7906,
-      "ari": 0.7499,
-      "time_s": 1.49,
-      "error": null
-    },
-    {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
-      "seed": 7,
-      "nmi": 0.7903,
-      "ari": 0.7487,
-      "time_s": 1.53,
-      "error": null
-    },
-    {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
-      "seed": 8,
-      "nmi": 0.7903,
-      "ari": 0.7487,
-      "time_s": 1.5,
-      "error": null
-    },
-    {
-      "method": "SCC-Dhillon",
-      "paper_name": "SCC (Dhillon 2001, k SVs, = our Rust impl)",
-      "seed": 9,
-      "nmi": 0.7899,
-      "ari": 0.7488,
-      "time_s": 1.53,
+      "nmi": 0.7056,
+      "ari": 0.5371,
+      "time_s": 17713.78,
       "error": null
     }
   ]

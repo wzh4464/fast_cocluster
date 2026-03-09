@@ -1,0 +1,79 @@
+{
+  "experiment": "Amazon 24-cat DiMergeCo-FNMF",
+  "dataset": "amazon_24cat",
+  "shape": [
+    1116318,
+    731283
+  ],
+  "nnz": 17106506,
+  "k": 24,
+  "date": "2026-03-08 05:43:28",
+  "results": [
+    {
+      "method": "DiMergeCo-FNMF-4x1",
+      "seed": 0,
+      "nmi": 0.3678081110057824,
+      "ari": 0.14493210636274734,
+      "time_s": 2660.867541074753,
+      "error": null,
+      "m_blocks": 4,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-4x1",
+      "seed": 1,
+      "nmi": 0.3597100136435544,
+      "ari": 0.10873851156506807,
+      "time_s": 2995.275898694992,
+      "error": null,
+      "m_blocks": 4,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-4x1",
+      "seed": 2,
+      "nmi": 0.35682385426395913,
+      "ari": 0.10245988695776029,
+      "time_s": 3473.957788705826,
+      "error": null,
+      "m_blocks": 4,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-8x1",
+      "seed": 0,
+      "nmi": 0.31837546275991996,
+      "ari": 0.14022919579720622,
+      "time_s": 4878.370679140091,
+      "error": null,
+      "m_blocks": 8,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-8x1",
+      "seed": 1,
+      "nmi": 0.30401767180431116,
+      "ari": 0.11653556056456373,
+      "time_s": 5538.806609630585,
+      "error": null,
+      "m_blocks": 8,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-8x1",
+      "seed": 2,
+      "nmi": 0.316719208659279,
+      "ari": 0.12477613149582716,
+      "time_s": 6632.832063436508,
+      "error": null,
+      "m_blocks": 8,
+      "n_blocks": 1,
+      "t_p": 10
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+{
+  "experiment": "RCV1-all baselines (804K x 47K sparse)",
+  "dataset": "rcv1_all",
+  "shape": [
+    804414,
+    47236
+  ],
+  "nnz": 60915113,
+  "k": 4,
+  "date": "2026-03-07 21:37:25",
+  "results": [
+    {
+      "method": "FNMF",
+      "seed": 0,
+      "nmi": 0.2943703811070911,
+      "ari": 0.15366301489826562,
+      "time_s": 27.9189350605011,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 1,
+      "nmi": 0.2943733231048901,
+      "ari": 0.15366452312625478,
+      "time_s": 26.677583932876587,
+      "error": null
+    },
+    {
+      "method": "FNMF",
+      "seed": 2,
+      "nmi": 0.2943693079973393,
+      "ari": 0.15366204541636333,
+      "time_s": 26.71211528778076,
+      "error": null
+    },
+    {
+      "method": "SCC",
+      "seed": 0,
+      "nmi": null,
+      "ari": null,
+      "time_s": null,
+      "error": "Input X contains NaN.\nKMeans does not accept missing values encoded as NaN natively. For supervised learning, you might want to consider sklearn.ensemble.HistGradientBoostingClassifier and Regressor which accept missing values encoded as NaNs natively. Alternatively, it is possible to preprocess the data, for instance by using an imputer transformer in a pipeline or drop samples with missing values. See https://scikit-learn.org/stable/modules/impute.html You can find a list of all estimators that handle NaN values at the following page: https://scikit-learn.org/stable/modules/impute.html#estimators-that-handle-nan-values"
+    },
+    {
+      "method": "SCC",
+      "seed": 1,
+      "nmi": null,
+      "ari": null,
+      "time_s": null,
+      "error": "Input X contains NaN.\nKMeans does not accept missing values encoded as NaN natively. For supervised learning, you might want to consider sklearn.ensemble.HistGradientBoostingClassifier and Regressor which accept missing values encoded as NaNs natively. Alternatively, it is possible to preprocess the data, for instance by using an imputer transformer in a pipeline or drop samples with missing values. See https://scikit-learn.org/stable/modules/impute.html You can find a list of all estimators that handle NaN values at the following page: https://scikit-learn.org/stable/modules/impute.html#estimators-that-handle-nan-values"
+    },
+    {
+      "method": "SCC",
+      "seed": 2,
+      "nmi": null,
+      "ari": null,
+      "time_s": null,
+      "error": "Input X contains NaN.\nKMeans does not accept missing values encoded as NaN natively. For supervised learning, you might want to consider sklearn.ensemble.HistGradientBoostingClassifier and Regressor which accept missing values encoded as NaNs natively. Alternatively, it is possible to preprocess the data, for instance by using an imputer transformer in a pipeline or drop samples with missing values. See https://scikit-learn.org/stable/modules/impute.html You can find a list of all estimators that handle NaN values at the following page: https://scikit-learn.org/stable/modules/impute.html#estimators-that-handle-nan-values"
+    },
+    {
+      "method": "DiMergeCo-FNMF-4x1",
+      "seed": 0,
+      "nmi": 0.2774459771152722,
+      "ari": 0.15806144278645234,
+      "time_s": 282.8962504863739,
+      "error": null,
+      "m_blocks": 4,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-4x1",
+      "seed": 1,
+      "nmi": 0.2648439570458838,
+      "ari": 0.14568988942713906,
+      "time_s": 271.5033941268921,
+      "error": null,
+      "m_blocks": 4,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-4x1",
+      "seed": 2,
+      "nmi": 0.2646625339217232,
+      "ari": 0.1455223271794698,
+      "time_s": 591.4944131374359,
+      "error": null,
+      "m_blocks": 4,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-8x1",
+      "seed": 0,
+      "nmi": 0.26510510339627413,
+      "ari": 0.14604783737826085,
+      "time_s": 505.400098323822,
+      "error": null,
+      "m_blocks": 8,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-8x1",
+      "seed": 1,
+      "nmi": 0.26540187198301357,
+      "ari": 0.1463795212568967,
+      "time_s": 374.91348361968994,
+      "error": null,
+      "m_blocks": 8,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-FNMF-8x1",
+      "seed": 2,
+      "nmi": 0.2943536362325791,
+      "ari": 0.15362124215943126,
+      "time_s": 266.8840103149414,
+      "error": null,
+      "m_blocks": 8,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-SCC-4x1",
+      "seed": 0,
+      "nmi": 6.405966701643311e-06,
+      "ari": 8.564657478633947e-07,
+      "time_s": 110.13546776771545,
+      "error": null,
+      "m_blocks": 4,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-SCC-4x1",
+      "seed": 1,
+      "nmi": 6.173174820249359e-06,
+      "ari": 7.900994643961577e-07,
+      "time_s": 111.69774436950684,
+      "error": null,
+      "m_blocks": 4,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-SCC-4x1",
+      "seed": 2,
+      "nmi": 3.551774222351075e-06,
+      "ari": -2.9550625402307513e-07,
+      "time_s": 115.01255178451538,
+      "error": null,
+      "m_blocks": 4,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-SCC-8x1",
+      "seed": 0,
+      "nmi": 7.70733396504677e-06,
+      "ari": -0.0004174381759097447,
+      "time_s": 117.0132269859314,
+      "error": null,
+      "m_blocks": 8,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-SCC-8x1",
+      "seed": 1,
+      "nmi": 7.483892589940265e-06,
+      "ari": 4.0589379640785755e-05,
+      "time_s": 116.0757691860199,
+      "error": null,
+      "m_blocks": 8,
+      "n_blocks": 1,
+      "t_p": 10
+    },
+    {
+      "method": "DiMergeCo-SCC-8x1",
+      "seed": 2,
+      "nmi": 5.892911979944273e-06,
+      "ari": 0.000441044133721725,
+      "time_s": 117.57827591896057,
+      "error": null,
+      "m_blocks": 8,
+      "n_blocks": 1,
+      "t_p": 10
+    }
+  ]
+}
